@@ -151,4 +151,4 @@ Measured source artifacts are `.pointtwo/python/evaluation.json` and `.pointtwo/
 npm --prefix web run build
 ```
 
-The benchmark command measures the selected workspace and reports its actual size. Repeating the historical 50,100-vector measurement requires an equivalently prepared catalog; the machine-local scale fixture is not included in a fresh clone. The retained `scale.json` records the original build and effort comparison; the portable benchmark writes `benchmark.json`. See [setup](../README.md), [demonstration](DEMO.md), and [design](../DESIGN.md).
+The benchmark command measures the selected workspace and reports its actual size. Repeating the historical 50,100-vector measurement requires an equivalently prepared catalog; the machine-local scale fixture is not included in a fresh clone. The retained `scale.json` records the original build and effort comparison; the portable benchmark writes `benchmark.json`. See [setup](../README.md), [demonstration](DEMO.md), and [design](../CLASSIFICATION_DESIGN.md).

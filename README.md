@@ -2,7 +2,7 @@
 
 A local client–matter classification and review application. Python ranks candidate labels using Qwen embeddings, Postgres/pgvector retrieval, explicit text matches, and timekeeper context. The React interface explains each score and shows how feedback changes future suggestions.
 
-[Classification design and alternatives](DESIGN.md) · [Evaluation report](docs/EVALUATION_REPORT.md) · [Demo walkthrough](docs/DEMO.md)
+[Classification design and alternatives](CLASSIFICATION_DESIGN.md) · [Evaluation report](docs/EVALUATION_REPORT.md) · [Demo walkthrough](docs/DEMO.md)
 
 ## Overview
 
@@ -35,7 +35,7 @@ The API handles imports, review decisions, and interactive classification/debug 
 | Ranking | Five persisted seeded-random demo weights; a shared scorer trained on reviewed labels is the production extension |
 | Interface | React review workspace and score debugger, available in a local browser or development Mac window |
 
-The [classification design](DESIGN.md) explains candidate retrieval, feature scoring, confidence rules, feedback, and model/index alternatives.
+The [classification design](CLASSIFICATION_DESIGN.md) explains candidate retrieval, feature scoring, confidence rules, feedback, and model/index alternatives.
 
 ## Run locally
 
