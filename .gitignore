@@ -1,0 +1,85 @@
+# Local deployment sources, state, plans, and generated infrastructure.
+/infra/
+/infrastructure/
+/deploy/
+/deployment/
+/.pointtwo/
+**/.terraform/
+*.tf
+*.tf.json
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars
+*.tfvars.json
+.terraform.lock.hcl
+**/cdk.out/
+cdk.context.json
+**/.aws-sam/
+**/.serverless/
+
+# Credentials and machine-specific configuration.
+.env
+.env.*
+!.env.example
+!.env.*.example
+.aws/
+secrets/
+*.secret
+*.secrets.*
+*.pem
+*.key
+*.p12
+*.pfx
+credentials
+credentials.*
+
+# Local agent configuration may contain deployment details or credentials.
+/AGENTS.md
+/.agents/
+/.codex/
+/.mcp.json
+/mcp.json
+/CLAUDE.md
+/.claude/
+/.cursor/
+/.kiro/
+
+# Local build output and operating-system files.
+.DS_Store
+target/
+node_modules/
+dist/
+*.log
+
+# TypeScript and browser-test output.
+*.tsbuildinfo
+**/test-results/
+**/playwright-report/
+
+# Python evaluation caches.
+__pycache__/
+*.py[cod]
+
+# Jupyter autosave checkpoints.
+.ipynb_checkpoints/
+
+# Local source documents, databases, model files, and Python tooling.
+/prompt.pdf
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+*.sqlite
+*.sqlite3
+*.sqlite3-*
+*.db
+*.db-*
+*.dump
+*.gguf
+*.safetensors
+*.npz
+*.npy
+*.egg-info/
+.coverage
+htmlcov/

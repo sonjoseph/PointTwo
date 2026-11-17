@@ -1,0 +1,54 @@
+import React,{useEffect,useState} from 'react';
+import {Play,RefreshCw,ArrowRight} from 'lucide-react';
+import './debugger.css';
+import EmbeddingGraph from './EmbeddingGraph';
+import FeedbackExperiment from './FeedbackExperiment';
+
+type API=(path:string,body?:unknown,method?:string)=>Promise<any>;
+type Candidate={CandidateId:string;ClientName:string;MatterName:string;Score:number;Status:string;decision:string|null;features:Record<string,number>;contributions:Record<string,number>;catalog_text:string;catalog_revision:number;sources:string[];examples:{entry_id:string;narrative:string;similarity:number;timekeeper:string}[]};
+type Run={id:string;input:any;generation:number;model:string;scorer:{version:string;features:string[];weights:Record<string,number>;bias:number;trained:boolean};candidates:Candidate[];low_confidence:boolean;reasons:string[];margin:number;timing_ms:Record<string,number>;retrieval:{catalog_hits:number;example_hits:number;candidate_count:number;mode:string}};
+const labels:Record<string,string>={catalog_similarity:'Catalog similarity',example_similarity:'Example similarity',has_example_match:'Example available (retired)',client_name_match:'Client name',matter_reference_match:'Matter reference',timekeeper_involvement:'Timekeeper context'};
+const colors=['#42765a','#6f9cc2','#b3c4df','#c99b52','#b47e9c','#9eae65'];
+const fmt=(n:number)=>n.toFixed(4);
+
+export default function ScoreDebugger({api,initialEntryId}:{api:API;initialEntryId?:string}){
+ const [run,setRun]=useState<Run|null>(null),[comparison,setComparison]=useState<any>(null),[candidate,setCandidate]=useState('');
+ const [entrySearch,setEntrySearch]=useState(''),[loadedInput,setLoadedInput]=useState<any>(null);
+ const [narrative,setNarrative]=useState('Drafted the Series A term sheet and negotiated investor rights for Acme Ventures.'),[user,setUser]=useState('joseph');
+ const [busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
+ function keep(value:Run){setRun(value);setCandidate(value.candidates[0]?.CandidateId||'');sessionStorage.setItem('pointtwo-debug-run',value.id)}
+ function loadEntryRun(value:Run){keep(value);setComparison(null);setNarrative(value.input.Narrative);setUser(value.input.UserId);setLoadedInput(value.input);setEntrySearch(value.input.EntryId);setNotice('')}
+ async function action(fn:()=>Promise<void>){setBusy(true);setError('');try{await fn()}catch(e){setError((e as Error).message)}finally{setBusy(false)}}
+ useEffect(()=>{let active=true;const id=sessionStorage.getItem('pointtwo-debug-run');if(initialEntryId){setBusy(true);setError('');api('/time-entries/'+initialEntryId+'/debug',{}).then(value=>{if(active)loadEntryRun(value)}).catch(e=>{if(active)setError(e.message)}).finally(()=>{if(active)setBusy(false)})}else if(id)api('/debug/runs/'+id).then(value=>{if(active)loadEntryRun(value)}).catch(()=>{});return()=>{active=false}},[api,initialEntryId]);
+ const after=comparison?.after as Run|undefined;
+ const displayed=after||run;
+ const selected=displayed?.candidates.find(c=>c.CandidateId===candidate)||displayed?.candidates[0];
+ return <section className="score-debugger">
+  <div className="debug-intro"><div><span className="hub-kicker">FOLLOW THE EVIDENCE</span><h2>Why this matter?</h2><p>Inspect the score, then capture how a correction changes the next result.</p></div><span className="debug-chip">{displayed?.scorer.version||'Seeded random baseline'}</span></div>
+  {error&&<p className="hub-alert" role="alert">{error}</p>}{notice&&<p className="hub-notice" role="status">{notice}</p>}
+  {run?.scorer.features.includes('has_example_match')&&<p className="hub-notice">This saved run uses the retired example-availability bonus. Analyze again or reopen the entry to use the current scorer.</p>}
+  <form className="debug-entry-search" onSubmit={e=>{e.preventDefault();void action(async()=>{const result=await api('/time-entries?'+new URLSearchParams({entry_id:entrySearch.trim(),limit:'20'}));if(result.items.length===1)loadEntryRun(await api('/time-entries/'+result.items[0].id+'/debug',{}));else setNotice('No entry with that exact EntryId. Check the ID and try again.')})}}><label>Open an existing time entry<input aria-label="Debugger time-entry ID" required value={entrySearch} onChange={e=>setEntrySearch(e.target.value)} placeholder="e.g. corpus-0041 or demo-001"/></label><button className="hub-secondary" disabled={busy||!entrySearch.trim()}>Find entry & debug</button></form>
+  {loadedInput&&<p className="debug-caption">Loaded entry <strong>{loadedInput.EntryId}</strong> · {loadedInput.UserId}. This debugger uses the entry’s original metadata. Editing the fields below creates an exploratory probe, not a source edit.</p>}
+  <form className="debug-query" onSubmit={e=>{e.preventDefault();void action(async()=>{const value=await api('/debug/classify',loadedInput||{UserId:user,EntryId:'debug-probe',Narrative:narrative,Hours:0,ClientName:'',MatterName:'',EntryDate:new Date().toLocaleDateString('en-CA')});keep(value);setComparison(null)})}}>
+   <label>Narrative<textarea aria-label="Narrative to analyze" required value={narrative} onChange={e=>{setNarrative(e.target.value);setLoadedInput(null)}} rows={3}/></label><div><label>Timekeeper<input aria-label="Probe timekeeper" required value={user} onChange={e=>{setUser(e.target.value);setLoadedInput(null)}}/></label><button className="hub-primary" disabled={busy}><Play size={14}/>Analyze & save baseline</button></div>
+  </form>
+  {run&&<>
+   <div className="debug-metrics"><div><small>Catalog / example hits</small><strong>{displayed!.retrieval.catalog_hits} / {displayed!.retrieval.example_hits}</strong></div><div><small>Candidates scored</small><strong>{displayed!.retrieval.candidate_count}</strong></div><div><small>Time</small><strong>{displayed!.timing_ms.total.toFixed(0)} ms</strong></div><div><small>Top-two margin</small><strong>{fmt(displayed!.margin)}</strong></div></div>
+   <p className={'debug-status '+(displayed!.low_confidence?'uncertain':'')}>{displayed!.low_confidence?'Needs review':'Draft suggestion'} · {displayed!.reasons.join(' · ')}</p>
+   <EmbeddingGraph api={api} runId={run.id} afterId={after?.id} onSelectMatter={setCandidate}/>
+   <h3>{after?"Latest scores after comparison":"Baseline scores"}</h3>
+   <div className="debug-legend">{displayed!.scorer.features.map((f,i)=><span key={f}><i style={{background:colors[i]}}/>{labels[f]}</span>)}</div>
+   <div className="debug-ranking" aria-label="Candidate score contributions">
+    {displayed!.candidates.slice(0,8).map((c,i)=><button key={c.CandidateId} className={'debug-rank-row '+(candidate===c.CandidateId?'selected':'')} onClick={()=>setCandidate(c.CandidateId)}><span><b>{i+1}. {c.ClientName}</b><small>{c.MatterName}{c.decision?` · ${c.decision}`:''}</small></span><div className="debug-stack">{displayed!.scorer.features.map((f,j)=><i key={f} title={`${labels[f]}: ${fmt(c.contributions[f])}`} style={{width:`${Math.abs(c.contributions[f])*100}%`,background:colors[j]}}/>)}</div><strong>{fmt(c.Score)}</strong></button>)}
+   </div>
+   <p className="debug-caption">Bar segments show weighted contributions on a shared scale. Scores are not probabilities. Explicit decisions can override rank without changing the numeric score.</p>
+   {selected&&<div className="debug-evidence"><h3>{selected.ClientName} / {selected.MatterName}</h3><p>Found through: {selected.sources.join(', ')}</p><div className="debug-table-scroll"><table><thead><tr><th>Feature</th><th>Value</th><th>Weight</th><th>Contribution</th></tr></thead><tbody>{displayed!.scorer.features.map((f,i)=><tr key={f}><td><span className="debug-dot" style={{background:colors[i]}}/>{labels[f]}</td><td>{fmt(selected.features[f])}</td><td>{fmt(displayed!.scorer.weights[f])}</td><td>{fmt(selected.contributions[f])}</td></tr>)}<tr><td>Bias</td><td>1</td><td>{fmt(displayed!.scorer.bias)}</td><td>{fmt(displayed!.scorer.bias)}</td></tr><tr className="debug-total"><td colSpan={3}>Total score</td><td>{fmt(selected.Score)}</td></tr></tbody></table></div>
+   <details open><summary>Catalog evidence · revision {selected.catalog_revision}</summary><p>{selected.catalog_text}</p></details>
+   <details open><summary>Confirmed examples · same timekeeper</summary>{selected.examples.length?selected.examples.map(e=><article key={e.entry_id}><blockquote>{e.narrative}</blockquote><small>Cosine similarity {fmt(e.similarity)} · {e.timekeeper}</small></article>):<p>No confirmed example was retrieved. This candidate is supported by the catalog and other context.</p>}</details></div>}
+   <FeedbackExperiment key={run.id} api={api} run={run} onComparison={setComparison}/>
+   <div className="debug-feedback"><div><h3>What changed after feedback?</h3><p>The baseline stays fixed. Apply a correction above, or compare after reviewing entries elsewhere. The table shows how each candidate’s score changed.</p></div><button className="hub-secondary" disabled={busy} onClick={()=>action(async()=>setComparison(await api('/debug/runs/'+run.id+'/compare',{})))}><RefreshCw size={15}/>Compare with current feedback</button></div>
+   {comparison&&after&&<div className="debug-comparison"><p><strong>{comparison.same_scorer?'Same weights':'Scorer changed'}</strong> · {comparison.same_model?'Same embeddings model':'Embedding model changed'} · evidence generation {run.generation} → {after.generation}</p><p>{!comparison.generation_changed?'No new feedback or catalog change since the baseline.':comparison.same_scorer&&comparison.same_model&&comparison.same_retrieval?'Differences come from changed retrieval evidence or explicit decisions, not retraining.':'Multiple versions changed; this is not an isolated feedback experiment.'}</p><div className="debug-table-scroll"><table><thead><tr><th>Matter</th><th>Before</th><th>After</th><th>Change</th><th>Example similarity</th></tr></thead><tbody>{comparison.changes.slice(0,12).map((c:any)=><tr key={c.CandidateId}><td>{c.ClientName}<small>{c.MatterName}</small></td><td>{c.before===null?'Not retrieved':fmt(c.before)}</td><td>{c.after===null?'Not retrieved':fmt(c.after)}</td><td className={c.delta>0?'debug-gain':''}>{c.delta===null?'—':`${c.delta>0?'+':''}${fmt(c.delta)}`}{c.decision_before!==c.decision_after&&<small>Decision: {c.decision_after||'cleared'}</small>}</td><td>{c.features.example_similarity.before===null?'—':fmt(c.features.example_similarity.before)} → {c.features.example_similarity.after===null?'—':fmt(c.features.example_similarity.after)}</td></tr>)}</tbody></table></div><button className="hub-secondary" onClick={()=>{keep(after);setComparison(null)}}>Use new result as baseline <ArrowRight size={14}/></button></div>}
+   <details className="debug-technical"><summary>Run metadata & raw trace</summary><p>Retrieval: {run.retrieval.mode} · generation {run.generation}</p><p>Model: {run.model}</p><pre>{JSON.stringify(run,null,2)}</pre></details>
+  </>}
+ </section>
+}

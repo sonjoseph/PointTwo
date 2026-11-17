@@ -1,0 +1,13 @@
+{
+  "name": "pointtwo-desktop",
+  "version": "0.1.0",
+  "description": "PointTwo local client/matter classification and review",
+  "main": "main.cjs",
+  "private": true,
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^45.3.2"
+  }
+}

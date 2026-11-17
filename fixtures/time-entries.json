@@ -1,0 +1,8 @@
+[
+ {"UserId":"joseph","EntryId":"demo-001","Narrative":"Drafted the Series A term sheet and negotiated investor rights for Acme Ventures.","Hours":1.25,"ClientName":"Northstar Labs","MatterName":"Patent dispute","EntryDate":"2026-11-16"},
+ {"UserId":"alex","EntryId":"demo-002","Narrative":"Researched patent infringement decisions and drafted a discovery brief for Northstar Labs.","Hours":0.75,"ClientName":"Northstar Labs","MatterName":"Patent dispute","EntryDate":"2026-11-16"},
+ {"UserId":"joseph","EntryId":"demo-003","Narrative":"Reviewed employee compensation policies and contractor onboarding agreements for Acme Ventures.","Hours":0.5,"ClientName":"Acme Ventures","MatterName":"Series A financing","EntryDate":"2026-11-16"},
+ {"UserId":"sam","EntryId":"demo-004","Narrative":"Reviewed a term sheet for an equity financing round.","Hours":0.3,"ClientName":"","MatterName":"","EntryDate":"2026-11-16"},
+ {"UserId":"sam","EntryId":"demo-005","Narrative":"Watered the office plants and arranged refreshments.","Hours":0.1,"ClientName":"","MatterName":"","EntryDate":"2026-11-16"},
+ {"UserId":"joseph","EntryId":"demo-006","Narrative":"Reviewed Acme Ventures acquisition due diligence for the completed acquisition.","Hours":0.625,"ClientName":"Acme Ventures","MatterName":"Completed acquisition","EntryDate":"2025-06-12"}
+]
