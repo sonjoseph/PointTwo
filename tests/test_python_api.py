@@ -94,7 +94,7 @@ def test_review_debug_contract(client):
     assert result.status_code == 200
     assert set(result.json()[0]) == {"ClientName", "MatterName", "Score", "Rationale"}
     baseline = client.get("/api/debug/runs/" + row["run_id"]).json()
-    assert baseline["scorer"]["version"] == "random-42-v2"
+    assert baseline["scorer"]["version"] == "random-42-v3"
     candidate = row["suggestions"][0]["CandidateId"]
     assert (
         client.post(
@@ -284,3 +284,37 @@ def test_rebuild_also_refreshes_open_scores(client):
         ).fetchone()
     api.engine.process_entry(api.WS, raw)
     assert not client.get("/api/time-entries/" + str(raw["id"])).json()["outdated"]
+
+
+@pytest.mark.parametrize("client", [False], indirect=True)
+def test_jev_api_returns_alternatives_and_uncertainty(client, monkeypatch):
+    from classifier import store
+    from classifier.jev_engine import JevEngine
+    from tests.test_jev_engine import StubJev
+
+    monkeypatch.setattr(api, "engine", JevEngine(api.embedder, StubJev(uncertain=True)))
+    assert client.get("/api/health").json()["decision_pipeline"] == "jev"
+    assert client.get("/api/scorer").json()["kind"] == "jev"
+    client.post(
+        "/api/catalog",
+        json=[
+            {
+                "ClientId": "a",
+                "ClientName": "Acme",
+                "MatterId": "finance",
+                "MatterName": "Financing",
+                "MatterDescription": "Investor rights",
+            }
+        ],
+    )
+    while store.prepare_batch(api.WS, api.embedder):
+        pass
+    result = client.post("/api/classify", json=entry().record())
+    assert result.status_code == 200 and len(result.json()) == 1
+    assert result.headers["X-PointTwo-Low-Confidence"] == "true"
+    assert set(result.json()[0]) == {"ClientName", "MatterName", "Score", "Rationale"}
+    run = client.get("/api/debug/runs/" + result.headers["X-PointTwo-Run-Id"]).json()
+    assert run["decision"]["selected_label"] == "Insufficient evidence"
+    assert run["decision"]["thresholds"]["minimum_probability"] == 0.7
+    assert run["suggestions"][0]["Score"] == 0.3
+    assert run["decision_request"]["state"]["narrative"] == entry().Narrative

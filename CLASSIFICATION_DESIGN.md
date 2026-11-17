@@ -2,21 +2,21 @@
 
 ## Problem statement
 
-PointTwo suggests the correct client–matter assignment for an existing time entry using its work narrative and a searchable client/matter catalog. **This is a multi-class classification problem:** each class is a client–matter pair. Nearest-neighbor similarities, explicit text matches, and timekeeper context are features in a shared linear ranking model.
+PointTwo suggests the correct client–matter assignment for an existing time entry using its work narrative and a searchable client/matter catalog. **This is a multi-class classification problem:** each class is a client–matter pair. Embedding similarity retrieves plausible matters and confirmed examples; a Jev decision model reads their text together to judge the assignment.
 
 For example, “Drafted term sheet for Series A round” should retrieve “Venture Financing – Series A” despite different wording. If several clients have equally plausible financing matters, the system should surface the ambiguity rather than invent a client identity.
 
-This document covers classification requirements, retrieval, scoring, feedback, and the alternatives considered. See the [README](README.md#application-architecture) for the application architecture and setup.
+This document covers the selected retrieval-plus-decision design, the evolution from weighted scoring, and the alternatives considered. The review application supports the Jev pipeline after explicit cloud opt-in; the four-feature weighted method remains a fully local baseline. Experimental confidence gates require further calibration before production use. See the [README](README.md#application-architecture) for the application architecture and setup.
 
 ## Requirements and design response
 
 | Requirement | How the design addresses it |
 | --- | --- |
-| **Matching:** connect narrative paraphrases to relevant matters | Qwen embeddings capture semantic similarity; explicit client names and matter references add identity evidence. A linear scorer combines these features into ranked client–matter suggestions. |
+| **Matching:** connect narrative paraphrases to relevant matters | Qwen embeddings capture semantic similarity; explicit client names and matter references add identity evidence. Jev interprets the original narrative, shortlisted matter descriptions, and confirmed examples together. |
 | **Scale:** search 50,000+ client/matter records | Persist catalog and confirmed-example vectors in separate pgvector HNSW indexes. Retrieve bounded candidate sets before exact rescoring, rather than compare every record for every query. |
 | **Reusable preparation:** store preparation and rebuild when data changes | Persist embeddings, text/model cache keys, indexes, source revisions, and preparation jobs. Reuse unchanged vectors; update changed records and support an explicit rebuild. Refreshing suggestions is separate from recomputing embeddings. |
-| **Feedback:** accept or reject each suggestion and improve over time | Index accepted narratives as confirmed examples; corrections replace their associations and rejections exclude the applicable candidate. Future queries use this evidence. Production training can periodically learn scoring weights from reviewed labels. |
-| **Low confidence:** signal weak matches | Apply evidence and top-two-margin review rules. Return explanations and a low-confidence state when evidence is insufficient; leave the assignment unresolved until review. Ranking scores are not probabilities. |
+| **Feedback:** accept or reject each suggestion and improve over time | Index accepted narratives as confirmed examples; corrections replace their associations and rejections exclude the applicable candidate. Future queries retrieve the corrected examples into the decision context. Hosted Jev is not retrained on these decisions. |
+| **Low confidence:** signal weak matches | Include an insufficient-evidence option and a separate support question; apply validated probability/margin gates before marking a suggestion ready. Keep uncertain entries unresolved. Model probabilities require domain calibration. |
 
 These are design mechanisms, not claims of measured accuracy. The [evaluation report](docs/EVALUATION_REPORT.md) separates matching quality, confidence coverage, feedback effects, and 50,000+ record search measurements, including limitations and unmet targets.
 
@@ -30,7 +30,19 @@ These are design mechanisms, not claims of measured accuracy. The [evaluation re
 
 Keep the **imported assignment**, **generated suggestions**, and **approved assignment** separate. Imported client/matter names may be wrong and are not training labels. Only confirmed assignments supply positive examples. `UserId` identifies the timekeeper; it does not grant access to a workspace.
 
-Persist review decisions, source revisions, prepared embeddings, scorer versions, and immutable classification runs alongside the input records. These support audit history, stale-result detection, and reproducible debugging.
+Persist review decisions, source revisions, prepared embeddings, retrieval/model/prompt/policy versions, and immutable classification runs alongside the input records. These support audit history, stale-result detection, and reproducible debugging.
+
+## Design evolution
+
+| Stage | Decision method | Motivation and limitation |
+| --- | --- | --- |
+| Weighted baseline | Add catalog similarity, confirmed-example similarity, client-name match, and matter-reference match with fixed seeded weights | Fast and exactly explainable, but compresses text into four numbers and treats evidence additively. |
+| Learned linear scorer | Fit those weights with logistic regression on reviewed entry/candidate pairs | Improves weighting, but still cannot recover distinctions absent from the features. Retained as a baseline experiment. |
+| **Jev decision pipeline** | Read the narrative, candidate descriptions, and confirmed examples together | Selected application pipeline: interpret relationships and conflicting evidence directly. Additional inference, privacy, and calibration costs must be measured. |
+
+The motivation is to preserve distinctions lost when text becomes a few numeric features. In the paired evaluation, “Revised financial covenants in the credit facility for Alder Robotics” scored slightly closer to Series A financing (cosine **0.6561**) than Credit facility (**0.6520**). The weighted baseline followed that order; Jev selected Credit facility from the supplied descriptions. Held-out top-one accuracy improved from **87.9% to 95.0%**, but Jev also cleared one unsupported assignment. See the [paired results and worked examples](docs/EVALUATION_REPORT.md#jev-versus-similarity-and-weighted-scoring). This synthetic result motivates further evaluation, not a claim that text reasoning always wins.
+
+We retain Qwen and HNSW for efficient retrieval. Jev replaces the final weighted decision stage; it is not the embedding model or a search index. Example availability and catalog timekeeper involvement remain excluded as standalone bonuses.
 
 ## Classification flow
 
@@ -39,27 +51,28 @@ flowchart TD
     Q[Time-entry narrative] --> E[Cached Qwen query embedding]
     E --> C[Catalog HNSW search]
     E --> H[Confirmed-example HNSW search]
-    C --> U[Union candidate client–matter pairs]
+    C --> U[Union and shortlist candidate matters]
     H --> U
-    L[Explicit names and lexical matches] --> U
-    U --> F[Compute similarities and context features]
-    F --> S[Linear scorer and review rules]
-    S --> R[Ranked suggestions]
-    R --> D[Reviewer decision]
-    D --> H
-    D -. Reviewed labels .-> T[Optional weekly production training]
-    T -. Versioned scoring weights .-> S
+    L[Explicit client names and matter references] --> U
+    U --> J[Jev reads narrative, candidate descriptions, and confirmed examples]
+    Q --> J
+    J --> G[Ranked probabilities and evidence sufficiency checks]
+    G --> R[Ranked suggestions or insufficient evidence]
+    R --> D[Human review]
+    D --> X[Update confirmed examples and explicit decisions]
+    X --> H
 ```
 
-Reviewer decisions update eligible evidence for later searches once preparation completes. Refreshing open suggestions reruns retrieval and scoring with cached embeddings. The dashed training path is a production extension: it would learn scoring weights from reviewed labels, while the demo keeps its weights fixed.
+1. Retrieve up to 50 catalog neighbors and 100 confirmed-example neighbors, scoped to compatible workspace, model, source revisions, and timekeeper history.
+2. Union their client–matter labels with explicit name/identifier matches. Remove rejected candidates; honor applicable explicit approvals.
+3. Start with a **10-matter shortlist**: explicit approvals first, then explicit text matches, then maximum catalog/example similarity, with stable ID tie-breaking. This selection does not use the weighted scorer or expected evaluation labels. Measure its recall before fixing its size.
+4. Supply the original narrative, each candidate's client/matter names and catalog description, and up to three distinct confirmed narratives. Exclude the query's own normalized narrative. Do not send imported assignments, baseline scores, or evaluation labels as evidence.
+5. Ask Jev to choose among the candidates and **insufficient evidence**, and separately assess whether the evidence uniquely identifies a matter. Rank matter options by their returned probabilities, then apply review rules and explicit decisions.
+6. Return up to five suggestions for human review. Record the candidate set, prompt/model version, responses, and review policy so the result can be inspected and reproduced.
 
-1. Retrieve catalog and confirmed-example neighbors separately. Initial candidate budgets are 50 catalog records and 100 examples, subject to evaluation.
-2. Enforce workspace/timekeeper scope and compatible model/source revisions. Filtered HNSW may need iterative scans, partitioning, or exact search for small scopes.
-3. Union candidate labels with lexical matches. Compute exact catalog similarity for every candidate, including those discovered through examples.
-4. Deduplicate example narratives and retain each matter's strongest example similarity. Keep up to three supporting examples for explanations; do not sum their votes.
-5. Score candidates, apply explicit decisions, and return up to five suggestions with explanations and review status.
+The two stages have different budgets: indexed retrieval searches the full 50,000+ record collection, potentially spanning thousands of client–matter classes; the decision model reads only **10 shortlisted matters and at most 30 confirmed examples**. There is no Jev call per catalog record. Track correct-matter coverage before and after shortlisting: an apparently certain decision among ten options can still miss an omitted alternative. The quality study uses 108 matters; larger-catalog decision quality remains to be evaluated.
 
-**Without confirmed examples, search only the catalog.** Continue catalog retrieval as history grows so new matters remain discoverable. Exact rescoring improves candidate scores but cannot recover a matter omitted by retrieval.
+**Without confirmed examples, retrieve and judge catalog descriptions alone.** Continue catalog search as history grows so new matters remain discoverable. Jev cannot recover the correct matter if retrieval or shortlisting omitted it.
 
 ## Embedding preparation
 
@@ -74,15 +87,44 @@ Instruct: Retrieve the client and matter matching this work description.
 Query: <Narrative>
 ```
 
-Keep IDs, hours, dates, status, and timekeeper involvement as structured metadata. Validate finite, nonzero 1,024-dimensional vectors and store float32 values in Postgres. Query/document formatting produces distinct cache entries.
+Keep IDs, hours, dates, status, and `InvolvedTimekeepers` as structured metadata. Catalog timekeeper involvement does not affect ranking: a person may bill to many matters. `UserId` still scopes retrieval of confirmed narratives and explicit decisions. Validate finite, nonzero 1,024-dimensional vectors and store float32 values in Postgres. Query/document formatting produces distinct cache entries.
 
 Cache by model/preprocessing identity and exact input text. Persist vectors, source revisions, and indexes so unchanged data is not prepared again. This satisfies reusable dataset preparation; reranking open entries after feedback is a separate freshness operation and does not require rebuilding all embeddings. Version model weights, runtime, pooling, instructions, dimensions, and precision; never mix incompatible embedding spaces.
 
-## Ranking and review
+## Decision model and review
 
-### Linear scoring model
+### Jev input and output
 
-Use the same feature weights for every candidate matter:
+The initial experiment uses TypeSafe’s hosted **`jev-1.14.0`**, pinned rather than a moving alias. Its Choice API returns a distribution over supplied options. A companion Noul question checks whether the evidence supports a unique assignment. These questions are evaluated independently; the support question receives the same candidate evidence, not the Choice answer. [Choice](https://docs.typesafe.ai/primitives/choice), [Noul](https://docs.typesafe.ai/primitives/noul).
+
+| Input | Purpose |
+| --- | --- |
+| Original narrative | Preserve relationships, negation, transaction context, and named entities |
+| Candidate names, identifiers, status, and catalog descriptions | Define the actual client–matter choices |
+| Retrieved confirmed narratives, associated with each candidate | Show similar work previously assigned by a reviewer |
+| Fixed instructions and insufficient-evidence option | Require evidence for identity; allow unsupported and ambiguous inputs to remain unresolved |
+
+Use opaque option keys mapped to stable client/matter IDs. Shuffle their presentation deterministically to avoid exposing the baseline ranking. Treat imported record text as untrusted evidence, never as instructions. Validate returned option IDs, finite probabilities, their sum, answer types, and model identity. A timeout or malformed response is a processing failure, not a successful classification or silent fallback.
+
+For this pipeline, `Score` is the returned matter-option probability, conditional on the supplied shortlist and prompt. It is **not interchangeable with the baseline's weighted score** or automatically calibrated for legal work. Preserve the insufficient-evidence probability rather than renormalizing it away. `Rationale` should describe retrieved supporting evidence and review reasons, not claim access to Jev’s internal reasoning. The debugger shows option probabilities, supplied texts, and before/after feedback; weighted contribution bars belong only to the linear baseline.
+
+### Low-confidence handling
+
+Flag a result when insufficient evidence wins, the highest matter probability is low, the competing-option margin is small, the support question fails, or a closed matter needs review. An explicit accepted assignment takes precedence. Initial experiment gates are **0.7 top probability, 0.1 margin, and 0.7 support**; they are unvalidated presets, not production confidence guarantees.
+
+The provider’s `confidence` summarizes distribution concentration. Use the option probabilities and observed calibration rather than interpret that field as a correctness guarantee. A none-of-the-above option alone is unreliable, so evaluate it alongside the support check. Select thresholds on development data, freeze them, then assess coverage versus errors on fresh held-out data. [Confidence](https://docs.typesafe.ai/confidence), [Choice guidance](https://docs.typesafe.ai/primitives/choice).
+
+### Feedback and adaptation
+
+- **Accept:** index the narrative under its confirmed matter for future retrieval.
+- **Correct:** replace the old association and update eligible evidence.
+- **Reject/undo:** exclude the applicable candidate or remove the decision’s effect.
+
+Decisions retain their workspace/timekeeper, normalized-narrative, and compatible-revision scope. Feedback changes the context supplied to Jev after preparation; it does not retrain Qwen or Jev. Mark saved suggestions outdated and refresh unapproved entries using cached embeddings. Recheck source revisions and evidence generations before publishing results; preserve accepted assignments and immutable history.
+
+TypeSafe documents no customer fine-tuning or LoRA adaptation of hosted Jev. Weekly work therefore evaluates new feedback, retrieval settings, prompts, and thresholds; it does not update Jev’s weights. A separately selected open model could be adapted later, subject to labeled-data quality, held-out improvements, resource measurements, and rollback. Open Jev-style checkpoints are distinct from TypeSafe’s hosted model. [Model customization](https://docs.typesafe.ai/models).
+
+### Weighted baseline retained for comparison
 
 ```text
 score = bias
@@ -90,55 +132,18 @@ score = bias
       + w_example   × example_similarity
       + w_client    × client_name_match
       + w_reference × matter_reference_match
-      + w_context   × timekeeper_involvement
 ```
 
-| Feature | Definition |
-| --- | --- |
-| `catalog_similarity` | Exact cosine similarity to the candidate's catalog vector, clamped to [0, 1] |
-| `example_similarity` | Maximum similarity to its retrieved confirmed examples, clamped to [0, 1]; 0 if none |
-| `client_name_match` | 1 for an explicit client name match |
-| `matter_reference_match` | 1 for an explicit matter identifier match |
-| `timekeeper_involvement` | 1 if UserId appears in the matter's InvolvedTimekeepers |
+| Feature | Definition | Seeded weight |
+| --- | --- | ---: |
+| Catalog similarity | Exact cosine to the matter description, clamped to [0, 1] | 0.201625 |
+| Example similarity | Maximum retrieved confirmed-example cosine, clamped to [0, 1]; zero without examples | 0.114333 |
+| Client-name match | Explicit client name in the narrative | 0.181672 |
+| Matter-reference match | Explicit matter identifier in the narrative | 0.024534 |
 
-Catalog preparation is required; absent optional evidence contributes zero. Example availability alone adds no score; only its measured similarity contributes. Availability may be retained as diagnostic context for review rules. A maximum avoids vote-count inflation, although larger histories still have more chances for a strong match.
+The `random-42-v3` baseline has zero bias and fixed coefficients; they need not sum to one. Its review policy uses semantic support, explicit references/examples, and a top-two margin. Scores are uncalibrated. It remains available as the fully local comparison pipeline; the configured Jev application uses text decisions instead.
 
-Version features and weights together. Explanations show supporting records and `weight × feature` contributions. Scores express ranking, not calibrated confidence; production scores need not fall between 0 and 1.
-
-### Demo scoring weights
-
-Persist five seeded-random coefficients: catalog similarity 0.201625, example similarity 0.114333, client name 0.181672, matter reference 0.024534, and timekeeper context 0.254161 (rounded). Use zero bias; coefficients need not sum to one. Do not regenerate or renormalize them per query or feedback event. No separate coefficient rewards the mere presence of an example.
-
-This reproducible random baseline demonstrates the flow, not optimized accuracy. Report its measured quality without selecting a favorable seed on test data.
-
-### Review and immediate feedback
-
-- **Accept:** retain the decision and index the narrative under the confirmed matter.
-- **Correct:** supersede the old label, remove its positive association from eligible retrieval, and publish the corrected association.
-- **Reject/undo:** exclude the applicable rejected candidate or remove the decision's effect.
-
-Explicit decisions take precedence within their workspace/timekeeper, normalized-narrative, and compatible-revision scope. Track pending embedding updates so stale examples cannot influence retrieval. Feedback changes evidence immediately after preparation; it does not change Qwen or scoring weights, and never automatically reassigns reviewed entries. Saved suggestions are marked outdated. An explicit refresh queues outdated unapproved entries for background retrieval/ranking using their cached query vectors. Source revisions and evidence generations are rechecked before publishing results.
-
-Choose score and top-two-margin thresholds on validation data for each scorer version. Until validated, demo scores remain uncalibrated and require review. Empty or ambiguous results stay unresolved. Closed matters remain available for historical review.
-
-### Production scoring-model training
-
-Train a shared **regularized logistic-regression scorer** on entry/candidate feature rows. Confirmed assignments are positives; reliably incorrect competing candidates are negatives. Rejection alone does not establish another candidate as correct. Imported assignments and unreviewed predictions are not labels.
-
-| Stage | Procedure |
-| --- | --- |
-| Prepare labels | Use latest valid decisions with provenance and source revisions; deduplicate entries |
-| Reconstruct features | Use only evidence available before each review; exclude the entry's own approved example and duplicate copies |
-| Split | Earlier training data, later validation, and untouched later test data; prevent duplicate groups crossing splits |
-| Train weekly | When enough new reliable labels exist, fit bias and feature weights using regularized binary cross-entropy; balance candidate counts and matter volumes |
-| Evaluate | Compare against the random baseline and deployed scorer; check accuracy, abstention, latency, and new/sparse matters and languages |
-| Release | Publish weights, feature processing, and thresholds only when quality gates pass; retain rollback, otherwise keep the deployed scorer |
-
-Training can start from zero weights; production weights need not remain nonnegative or sum to one. Rank by the linear score. Sigmoid outputs require calibration before being presented as probabilities and do not sum to one across candidates.
-
-Evaluate retrieval failures separately: do not insert the correct matter into evaluation candidates when retrieval missed it. Keep training and serving access scopes aligned; shared training across workspaces requires explicit authorization. Use fresh later evaluation windows rather than repeatedly tuning against one test set.
-
-**Qwen stays frozen.** Weekly scorer updates require neither re-embedding nor an HNSW rebuild.
+Regularized logistic regression remains an optional learned baseline. Train on pre-review candidate features and latest reliable labels; exclude self/duplicate examples and unreviewed assignments. Use temporal splits and compatible model/scorer cohorts. Compare learned versus seeded weights without inserting missed correct matters into the candidate set. This offline training path is separate from Jev and does not require re-embedding.
 
 ## Technology choices
 
@@ -255,16 +260,22 @@ Persist preparation jobs and record revisions. Publish asynchronously computed e
 
 ## Evaluation
 
+Compare both decision methods on **identical candidate sets and evidence snapshots**. The comparison command also reports the full weighted baseline to expose shortlist pruning losses. Blind cases have no confirmed history; separate before/after probes exercise feedback. Keep model, prompt, candidate budget, and policy versions in each report. A previously inspected held-out set is a regression set; a release needs fresh held-out cases.
+
 Use 50,000+ catalog records, varied history sizes, and duplicate-heavy examples. Keep embeddings, scopes, and scoring weights fixed when comparing indexes.
 
 | Area | Measures |
 | --- | --- |
 | Retrieval | ANN recall@10/@30 against exact search; correct-matter candidate coverage |
 | Assignment | Top-one/top-five accuracy, errors versus abstention, no-history/new-matter behavior |
-| Learning | Random versus trained scorer on held-out later data; sparse matters and language breakdowns |
-| Performance | First-query/warm p50/p95, embedding versus search time, build/update time, peak memory and total disk |
+| Decision quality | Weighted baseline versus Jev; top-one/top-five accuracy, errors at matched coverage, unsupported/ambiguous cases, language breakdowns, and candidate-order sensitivity |
+| Feedback | Same probe before/after another entry’s correction; useful updates, misleading examples, rejection and undo |
+| Calibration | Reliability curves/Brier score for Jev options and sufficiency, evaluated on fresh later labels |
+| Performance | Separate embedding/search, decision inference, and end-to-end p50/p95; API tokens/cost/errors; local memory/disk and index build/update time |
 | Correctness | Accept/reject/undo, revisions, isolation, concurrent updates, interrupted preparation, restart recovery |
 
 Proposed targets: recall@30 ≥ 0.95, warm retrieval/ranking p95 < 250 ms, warm end-to-end p95 < 3 seconds on documented hardware. These are targets, not measured results. Report quality alongside speed; process restart alone does not establish an OS cold-cache benchmark.
 
 See the [evaluation report](docs/EVALUATION_REPORT.md) for measured results and the [README](README.md) for application architecture, setup, and review workflows.
+
+Hosted Jev is optional cloud processing: require explicit opt-in before sending user records. The comparison tool sends only the repository’s synthetic fixtures; the Jev-enabled application sends its retrieved workspace evidence. The UI identifies hosted decisions, and credentials stay in private configuration. On a pipeline/version change, unapproved entries are queued once. A failed request becomes a retryable processing error, not a weighted fallback. Network inference runs outside database locks; source and evidence generations are checked before saving results. Production rollout still needs matching quality, abstention, latency, privacy, and failure-handling checks.

@@ -17,15 +17,16 @@ from fastapi.staticfiles import StaticFiles
 from . import store
 from .database import connect
 from .embeddings import Embedder
-from .engine import Engine
+from .jev_engine import DecisionUnavailable
 from .models import Decision, Edit, Matter, TimeEntry
+from .runtime import create_engine
 
 log = logging.getLogger(__name__)
 ROOT = Path(__file__).resolve().parents[1]
 DATA = Path(os.getenv("POINTTWO_DATA", str(ROOT / ".pointtwo/python")))
 WS = os.getenv("POINTTWO_WORKSPACE", "local-review")
 embedder = Embedder()
-engine = Engine(embedder)
+engine = None
 stop = threading.Event()
 _token = ""
 
@@ -65,7 +66,7 @@ def work():
 
 @asynccontextmanager
 async def lifespan(app):
-    global _token
+    global _token, engine
     DATA.mkdir(parents=True, exist_ok=True, mode=0o700)
     tokenfile = DATA / "access-token"
     if not tokenfile.exists():
@@ -76,14 +77,22 @@ async def lifespan(app):
     if len(_token) < 32:
         raise ValueError("Access token must have at least 32 characters")
     store.migrate()
+    owned_engine = engine is None
+    if owned_engine:
+        engine = create_engine(embedder, DATA)
     with connect() as conn:
         store.workspace(conn, WS)
+        store.configure_decisions(conn, WS, engine.configuration)
     stop.clear()
     thread = threading.Thread(target=work, daemon=True)
     thread.start()
     yield
     stop.set()
-    thread.join(timeout=2)
+    thread.join(timeout=65)
+    if owned_engine:
+        if hasattr(engine, "client"):
+            engine.client.close()
+        engine = None
 
 
 app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
@@ -125,6 +134,7 @@ for exception, status in [
     (store.Conflict, 409),
     (store.Missing, 404),
     (store.NotReady, 409),
+    (DecisionUnavailable, 502),
 ]:
 
     def handler(request, exc, status=status):
@@ -135,7 +145,11 @@ for exception, status in [
 
 @app.get("/api/health")
 def health():
-    return {"ok": True, "engine": "python-pgvector"}
+    return {
+        "ok": True,
+        "engine": "python-pgvector",
+        "decision_pipeline": engine.configuration["kind"] if engine else "starting",
+    }
 
 
 @app.get("/api/preparation")
@@ -351,6 +365,8 @@ def debug_compare(ident: str, ws=Depends(authorized)):
 
 @app.get("/api/scorer")
 def scorer(ws=Depends(authorized)):
+    if engine.configuration["kind"] == "jev":
+        return engine.configuration
     with connect() as conn:
         return conn.execute(
             "SELECT scorer FROM pt_workspaces WHERE id=%s", (ws,)

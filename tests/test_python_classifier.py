@@ -123,7 +123,7 @@ def test_seed_and_arithmetic():
     b = demo_scorer()
     assert a == b
     assert "has_example_match" not in a["weights"]
-    assert sum(a["weights"].values()) == pytest.approx(0.7763252515729775)
+    assert sum(a["weights"].values()) == pytest.approx(0.5221642770336326)
     value, parts = score(dict.fromkeys(a["features"], 1), a)
     assert value == pytest.approx(sum(parts.values()) + a["bias"])
     assert value == pytest.approx(sum(a["weights"].values()))
@@ -396,7 +396,10 @@ def test_example_presence_without_similarity_adds_no_score():
     ] == pytest.approx(0.8 * demo_scorer()["weights"]["example_similarity"])
 
 
-def test_scorer_upgrade_queues_open_entries_preserves_decisions_and_history(system):
+@pytest.mark.parametrize("version", ["random-42-v1", "random-42-v2"])
+def test_scorer_upgrade_queues_open_entries_preserves_decisions_and_history(
+    system, version
+):
     from psycopg.types.json import Jsonb
 
     ws, emb, engine, ids, _ = system
@@ -405,9 +408,12 @@ def test_scorer_upgrade_queues_open_entries_preserves_decisions_and_history(syst
     engine.process_entry(ws, open_row)
     decide(ws, approved, emb, "accept", ids["a"])
     old = demo_scorer()
-    old["version"] = "random-42-v1"
-    old["features"].insert(2, "has_example_match")
-    old["weights"]["has_example_match"] = 0.22367474842702245
+    old["version"] = version
+    old["features"].append("timekeeper_involvement")
+    old["weights"]["timekeeper_involvement"] = 0.25416097453934494
+    if version == "random-42-v1":
+        old["features"].insert(2, "has_example_match")
+        old["weights"]["has_example_match"] = 0.22367474842702245
     with connect() as conn:
         conn.execute("UPDATE pt_workspaces SET scorer=%s WHERE id=%s", (Jsonb(old), ws))
     saved = engine.classify(ws, entry().record())
@@ -433,3 +439,24 @@ def test_scorer_upgrade_queues_open_entries_preserves_decisions_and_history(syst
         )
     assert store.get_entry(ws, str(open_row["id"]))["state"] == "waiting"
     assert store.get_entry(ws, str(approved["id"]))["accepted_id"] == ids["a"]
+
+
+def test_prior_timekeeper_involvement_cannot_boost_a_matter():
+    from classifier.scoring import FEATURES, feature_values
+
+    probe = entry(user="sam").record()
+    matter = {"client_name": "Acme", "matter_id": "finance", "metadata": {}}
+    without = feature_values(probe, matter, 0.5, [])
+    matter["metadata"]["InvolvedTimekeepers"] = ["sam", "alex"]
+    involved = feature_values(probe, matter, 0.5, [])
+    assert involved == without
+    assert "timekeeper_involvement" not in FEATURES
+    assert "timekeeper_involvement" not in demo_scorer()["weights"]
+    assert score(involved, demo_scorer()) == score(without, demo_scorer())
+    # Preserve the remaining weights; removal must not boost other features.
+    assert demo_scorer()["weights"]["catalog_similarity"] == pytest.approx(
+        0.20162455608114557
+    )
+    assert demo_scorer()["weights"]["example_similarity"] == pytest.approx(
+        0.11433294016332621
+    )

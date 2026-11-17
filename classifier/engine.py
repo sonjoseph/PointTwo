@@ -1,15 +1,20 @@
 """Candidate retrieval, transparent scoring, and immutable debug snapshots."""
 
 import time
+from typing import ClassVar
 from uuid import UUID, uuid4
+
 from psycopg.types.json import Jsonb
+
 from .database import connect
 from .embeddings import INSTRUCTION
-from .scoring import contains, normalize, feature_values, score, review_policy
-from .store import NotReady, Missing, lock, progress
+from .scoring import contains, feature_values, normalize, review_policy, score
+from .store import Missing, NotReady, lock, progress
 
 
 class Engine:
+    configuration: ClassVar[dict] = {"kind": "weighted"}
+
     def __init__(self, embedder):
         self.embedder = embedder
 
@@ -283,6 +288,9 @@ class Engine:
         after = self.classify(ws, before["input"])
         old = {c["CandidateId"]: c for c in before["candidates"]}
         new = {c["CandidateId"]: c for c in after["candidates"]}
+        same_units = before["scorer"].get("kind", "weighted") == after["scorer"].get(
+            "kind", "weighted"
+        )
         changes = []
         for ident in old.keys() | new.keys():
             a = old.get(ident)
@@ -294,7 +302,9 @@ class Engine:
                     "MatterName": (b or a)["MatterName"],
                     "before": a["Score"] if a else None,
                     "after": b["Score"] if b else None,
-                    "delta": b["Score"] - a["Score"] if a and b else None,
+                    "delta": b["Score"] - a["Score"]
+                    if a and b and same_units
+                    else None,
                     "features": {
                         f: {
                             "before": a["features"][f] if a else None,

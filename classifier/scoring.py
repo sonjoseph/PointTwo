@@ -9,7 +9,6 @@ FEATURES = (
     "example_similarity",
     "client_name_match",
     "matter_reference_match",
-    "timekeeper_involvement",
 )
 
 
@@ -26,12 +25,12 @@ def contains(text, phrase):
 
 
 def demo_scorer():
-    # Preserve the original five coefficients; remove only the availability bonus.
+    # Keep the four seeded coefficients without renormalizing retired bonuses.
     values = np.random.default_rng(42).uniform(0, 1, 6)
     values /= values.sum()
-    values = np.delete(values, 2)
+    values = np.delete(values, [2, 5])
     return {
-        "version": "random-42-v2",
+        "version": "random-42-v3",
         "features": list(FEATURES),
         "weights": dict(zip(FEATURES, values.tolist())),
         "bias": 0.0,
@@ -55,9 +54,6 @@ def feature_values(entry, matter, catalog_similarity, examples):
                 max([max(0, min(1, e["similarity"])) for e in examples], default=0),
                 int(contains(entry["Narrative"], matter["client_name"])),
                 int(contains(entry["Narrative"], matter["matter_id"])),
-                int(
-                    entry["UserId"] in matter["metadata"].get("InvolvedTimekeepers", [])
-                ),
             ],
         )
     )

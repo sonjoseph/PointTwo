@@ -3,9 +3,11 @@
 import hashlib
 import json
 from pathlib import Path
-from uuid import UUID, uuid4, uuid5, NAMESPACE_URL
+from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
+
 from psycopg import sql
 from psycopg.types.json import Jsonb
+
 from .database import connect
 from .models import Matter
 from .scoring import demo_scorer, normalize
@@ -45,18 +47,25 @@ def workspace(conn, name):
         previous = conn.execute(
             "SELECT scorer FROM pt_workspaces WHERE id=%s", (name,)
         ).fetchone()["scorer"]
-        if previous.get("version") == "random-42-v1" and not previous.get("trained"):
+        retired = {"has_example_match", "timekeeper_involvement"}
+        if retired.intersection(previous["features"]) or retired.intersection(
+            previous["weights"]
+        ):
+            is_demo = previous.get("version") in {
+                "random-42-v1",
+                "random-42-v2",
+            } and not previous.get("trained")
             replacement = {
                 **previous,
-                "version": "random-42-v2",
-                "features": [
-                    f for f in previous["features"] if f != "has_example_match"
-                ],
+                "version": "random-42-v3"
+                if is_demo
+                else previous["version"] + "-without-retired-features",
+                "features": [f for f in previous["features"] if f not in retired],
                 "weights": {
-                    f: w
-                    for f, w in previous["weights"].items()
-                    if f != "has_example_match"
+                    f: w for f, w in previous["weights"].items() if f not in retired
                 },
+                "calibrated": False,
+                "policy": {**previous["policy"], "thresholds_validated": False},
             }
             conn.execute(
                 "UPDATE pt_workspaces SET scorer=%s,generation=generation+1 WHERE id=%s",
@@ -87,6 +96,28 @@ def workspace(conn, name):
 
 def bump(conn, ws):
     conn.execute("UPDATE pt_workspaces SET generation=generation+1 WHERE id=%s", (ws,))
+
+
+def configure_decisions(conn, ws, configuration):
+    """Version a pipeline switch once, retaining explicit reviews and old runs."""
+    with conn.transaction():
+        lock(conn, ws)
+        previous = conn.execute(
+            "SELECT decision_config FROM pt_workspaces WHERE id=%s", (ws,)
+        ).fetchone()["decision_config"]
+        if previous == configuration:
+            return 0
+        conn.execute(
+            "UPDATE pt_workspaces SET decision_config=%s WHERE id=%s",
+            (Jsonb(configuration), ws),
+        )
+        if previous is None and configuration == {"kind": "weighted"}:
+            return 0
+        bump(conn, ws)
+        return conn.execute(
+            "UPDATE pt_entries SET state='waiting',error=NULL WHERE workspace_id=%s AND accepted_id IS NULL",
+            (ws,),
+        ).rowcount
 
 
 def import_catalog(ws, items):
@@ -194,7 +225,21 @@ def get_entry(ws, ident):
         gen = conn.execute(
             "SELECT generation FROM pt_workspaces WHERE id=%s", (ws,)
         ).fetchone()["generation"]
-        return row_entry(row, gen)
+        run = (
+            conn.execute(
+                "SELECT snapshot FROM pt_runs WHERE workspace_id=%s AND id=%s",
+                (ws, row["run_id"]),
+            ).fetchone()
+            if row["run_id"]
+            else None
+        )
+    snapshot = run["snapshot"] if run else {}
+    return {
+        **row_entry(row, gen),
+        "decision": snapshot.get("decision"),
+        "review_reasons": snapshot.get("reasons", []),
+        "score_kind": snapshot.get("scorer", {}).get("kind", "weighted"),
+    }
 
 
 def progress(ws, model):
