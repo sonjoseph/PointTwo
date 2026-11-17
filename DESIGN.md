@@ -1,4 +1,4 @@
-# PointTwo design
+# PointTwo classification design
 
 ## Problem statement
 
@@ -6,7 +6,7 @@ PointTwo suggests the correct client–matter assignment for an existing time en
 
 For example, “Drafted term sheet for Series A round” should retrieve “Venture Financing – Series A” despite different wording. If several clients have equally plausible financing matters, the system should surface the ambiguity rather than invent a client identity.
 
-The scope is importing records, returning classification suggestions, reviewing them, and using feedback to improve future suggestions. Screen recording, activity summarization, and task clustering are outside this design.
+This document covers classification requirements, retrieval, scoring, feedback, and the alternatives considered. See the [README](README.md#application-architecture) for the application architecture and setup.
 
 ## Requirements and design response
 
@@ -32,43 +32,26 @@ Keep the **imported assignment**, **generated suggestions**, and **approved assi
 
 Persist review decisions, source revisions, prepared embeddings, scorer versions, and immutable classification runs alongside the input records. These support audit history, stale-result detection, and reproducible debugging.
 
-## High-level design
+## Classification flow
 
 ```mermaid
 flowchart TD
-    UI[React import, review, and debugger] --> API[Python API]
-    API --> DB[(Postgres records, decisions, and cached vectors)]
-    API --> W[Preparation worker]
-    W --> Q[Local Qwen embeddings]
-    Q --> DB
-    API --> C[Classification pipeline]
-    C --> E[Cached narrative embedding]
-    E --> Q
-    E --> H[Catalog and confirmed-example HNSW searches]
-    DB --> H
-    H --> R[Candidate union, exact features, linear scorer]
-    C --> L[Explicit name and matter-reference matches]
-    L --> R
-    R --> S[Ranked suggestions and review rules]
-    S --> UI
-    UI --> F[Accept, reject, correct, or undo]
-    F --> API
-    F --> W
-    DB -. Reviewed labels .-> T[Optional production scorer training]
-    T -. Versioned weights .-> R
+    Q[Time-entry narrative] --> E[Cached Qwen query embedding]
+    E --> C[Catalog HNSW search]
+    E --> H[Confirmed-example HNSW search]
+    C --> U[Union candidate client–matter pairs]
+    H --> U
+    L[Explicit names and lexical matches] --> U
+    U --> F[Compute similarities and context features]
+    F --> S[Linear scorer and review rules]
+    S --> R[Ranked suggestions]
+    R --> D[Reviewer decision]
+    D --> H
+    D -. Reviewed labels .-> T[Optional weekly production training]
+    T -. Versioned scoring weights .-> S
 ```
 
-| Component | Choice and responsibility |
-| --- | --- |
-| Application | Python FastAPI and background worker: import, preparation, classification, and revision-checked review decisions |
-| Storage/search | Postgres + pgvector: persistent records, workspace partitions, separate catalog/example HNSW indexes, and exact similarity calculations |
-| Embeddings | Local Qwen3-Embedding-0.6B through Ollama, producing 1,024-dimensional vectors |
-| Ranking | Five persisted seeded-random demo weights; a shared scorer trained on reviewed labels is the production extension |
-| Interface | React review workspace and score debugger, available in a local browser or development Mac window |
-
-The debugger exposes supporting neighbors, feature values, weights, contributions, and review reasons. It compares a fixed probe before and after feedback on another entry. Its 2D embedding projection is illustrative; displayed cosine similarities use the full vectors. Immutable debugger runs and saved entry suggestions can reflect different evidence versions until suggestions are refreshed.
-
-## Classification flow
+Reviewer decisions update eligible evidence for later searches once preparation completes. Refreshing open suggestions reruns retrieval and scoring with cached embeddings. The dashed training path is a production extension: it would learn scoring weights from reviewed labels, while the demo keeps its weights fixed.
 
 1. Retrieve catalog and confirmed-example neighbors separately. Initial candidate budgets are 50 catalog records and 100 examples, subject to evaluation.
 2. Enforce workspace/timekeeper scope and compatible model/source revisions. Filtered HNSW may need iterative scans, partitioning, or exact search for small scopes.
@@ -268,19 +251,7 @@ Reuse cached inference, deduplicate equivalent examples, and collect unreference
 
 Compressed indexes do not shrink retained originals. Measure total database/index storage and process/model memory separately.
 
-Persist preparation jobs and record revisions. Publish asynchronously computed embeddings only when their source revision still matches. The user-triggered catalog rebuild also queues unapproved entries for background rescoring after preparation; accepted assignments and immutable run history remain intact. Rebuild indexes from saved vectors when index settings change; changing embedding models requires compatible re-embedding. Use transactional decisions, revision checks, backups, and index maintenance; rebuilds must not overwrite reviewed assignments. Keep credentials and infrastructure under ignored `infra/` or `.pointtwo/` directories.
-
-## Local execution and central-server deployment
-
-| Concern | Local demo | Central service |
-| --- | --- | --- |
-| Application | Local Python | Authenticated Python API and workers |
-| Records and retrieval | Local Postgres + pgvector | Server-hosted Postgres + pgvector |
-| Embeddings | Local Qwen | Shared inference or explicitly supported compatible device vectors |
-| Access | One local workspace | Authorized users/devices; scoped feedback |
-| Operations | Local service, persistence, backups | Backups, monitoring, capacity, recovery |
-
-The demo is persistent, not purely in-memory; 50,000 records is an evaluation target, not a capacity limit. Central deployment requires explicit data-sharing opt-in. Devices access the API, which handles idempotent writes, revisions, incremental changes, and conflicts. Database hosting alone does not provide synchronization; offline edits need a separate queue/conflict protocol. Imported UserId is metadata, not authorization.
+Persist preparation jobs and record revisions. Publish asynchronously computed embeddings only when their source revision still matches. The user-triggered catalog rebuild also queues unapproved entries for background rescoring after preparation; accepted assignments and immutable run history remain intact. Rebuild indexes from saved vectors when index settings change; changing embedding models requires compatible re-embedding. Use transactional decisions, revision checks, backups, and index maintenance; rebuilds must not overwrite reviewed assignments.
 
 ## Evaluation
 
@@ -296,4 +267,4 @@ Use 50,000+ catalog records, varied history sizes, and duplicate-heavy examples.
 
 Proposed targets: recall@30 ≥ 0.95, warm retrieval/ranking p95 < 250 ms, warm end-to-end p95 < 3 seconds on documented hardware. These are targets, not measured results. Report quality alongside speed; process restart alone does not establish an OS cold-cache benchmark.
 
-Implementation navigation: [module map](classifier/README.md), [setup](README.md), and [demo walkthrough](docs/DEMO.md). Measured results belong in the [evaluation report](docs/EVALUATION_REPORT.md).
+See the [evaluation report](docs/EVALUATION_REPORT.md) for measured results and the [README](README.md) for application architecture, setup, and review workflows.
