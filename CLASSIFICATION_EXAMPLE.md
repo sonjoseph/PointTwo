@@ -1,6 +1,6 @@
 # Classification example: one entry end to end
 
-This walkthrough follows one time entry through the Jev pipeline: embedding, similarity search, shortlisting, and the Jev decision. All values come from the November 22, 2026 synthetic run (`.pointtwo/python/jev-comparison-v4.json`), case `corpus-0559`. See the [classification design](CLASSIFICATION_DESIGN.md) for the rationale and the [evaluation report](docs/EVALUATION_REPORT.md#similarity-only-shortlist) for aggregate results.
+This walkthrough follows one time entry through the Jev pipeline: embedding, similarity search, shortlisting, and the Jev decision. All values come from the November 22, 2026 synthetic run (`.pointtwo/python/jev-comparison-v4.json`), case `corpus-0559`. See the [classification design](CLASSIFICATION_DESIGN.md) for the rationale and the [evaluation report](docs/EVALUATION_REPORT.md#pool-without-a-full-catalog-name-search) for aggregate results.
 
 ## The entry
 
