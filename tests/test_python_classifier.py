@@ -335,7 +335,7 @@ def test_seed_is_repeatable_and_preserves_reviews_and_edits(system):
     ws, emb, _, _, _ = system
     result = seed(ws)
     assert result["catalog_added"] == 114
-    assert result["entries_added"] == 562
+    assert result["entries_added"] == 598
     with connect() as conn:
         row = conn.execute(
             "SELECT * FROM pt_entries WHERE workspace_id=%s AND external_id='demo-001'",

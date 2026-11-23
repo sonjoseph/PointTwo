@@ -350,7 +350,7 @@ def _run(output, client, limit, size, gates):
         "feedback": feedback,
         "limitations": [
             "Synthetic fixtures only; not a real legal-domain accuracy claim.",
-            "Shortlist selection is lexical-first then maximum catalog/example similarity; independent of linear weights and gold labels.",
+            "Shortlist selection: up to 3 literal MatterId matches, up to 7 literal client-name matches, then maximum catalog/example similarity; no linear weights or gold labels.",
             "Same shortlist for both rerankers; full baseline also reported to expose shortlist pruning losses.",
             "Jev probabilities are conditional on the supplied options; review thresholds are unvalidated presets.",
             "Previously inspected held-out set is a regression set, not a fresh blind release gate.",

@@ -9,11 +9,12 @@
 - `api.py`: authenticated local review/debug API and durable preparation worker.
 - `seed.py`: idempotent bundled fixture initialization; skips existing IDs and never approves expected labels.
 - `evaluate.py`: isolated synthetic quality and feedback evaluation.
-- `jev.py`: fixed-shortlist text requests, strict typed-response validation, and experimental Jev review gates.
+- `jev.py`: shortlist selection (capped exact client-name and matter-ID slots, then similarity), text requests, strict typed-response validation, and experimental Jev review gates.
 - `jev_engine.py`: application Jev decisions, immutable probability/evidence traces, and stale-result checks after hosted inference.
 - `runtime.py`: explicit pipeline opt-in and private environment/key-file configuration.
 - `compare_jev.py`: paired weighted/Jev synthetic evaluation; offline by default, explicit `--execute` for hosted inference.
 - `benchmark.py`: catalog recall benchmark against exact search in a selected prepared workspace.
+- `shortlist_scale.py`: offline shortlist coverage for similarity-only, exact-first, capped exact-match (full-catalog name search), and capped in-pool rules at pools of 50–400 matters, on synthetic catalogs of up to 1,000 clients.
 - `train.py`: offline candidate logistic-regression training from pre-feedback snapshots.
 
 `python -m classifier` listens on loopback port 8794. Set `DATABASE_URL` privately; `POINTTWO_DATA` defaults to `.pointtwo/python`, `POINTTWO_WORKSPACE` to `local-review`, and `OLLAMA_URL` to `http://127.0.0.1:11434`. One token authorizes the configured workspace; imported UserId only scopes timekeeper evidence. This is a local service, not a production multi-tenant authentication system.

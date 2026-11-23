@@ -57,14 +57,53 @@ def response(mapping, *, support=0.9):
 
 def test_shortlist_does_not_use_linear_weights_or_expected_labels():
     s = snapshot()
-    s["candidates"].append(candidate("Explicit", 0.1, lexical=1))
     s["candidates"].append(candidate("Rejected", 1, decision="reject"))
     original = shortlist(s, 2)
     for c in s["candidates"]:
         c["Score"] *= -100
     s["expected"] = ["Rejected", "financing"]
-    assert [c["ClientId"] for c in original] == ["Explicit", "Acme"]
+    assert [c["ClientId"] for c in original] == ["Acme", "Birch"]
     assert shortlist(s, 2) == original
+
+
+def test_shortlist_guarantees_capped_literal_matches():
+    s = snapshot()
+    reference = candidate("Reference", 0.05)
+    reference["features"]["matter_reference_match"] = 1
+    s["candidates"] += [candidate("Named", 0.1, lexical=1), reference]
+    assert [c["ClientId"] for c in shortlist(s, 3)] == ["Reference", "Named", "Acme"]
+
+
+def test_shortlist_caps_client_name_matches_so_similarity_keeps_slots():
+    s = {"input": snapshot()["input"], "candidates": []}
+    s["candidates"] = [
+        candidate(f"Named{i}", 0.5 - i / 100, lexical=1) for i in range(9)
+    ]
+    s["candidates"] += [candidate("Unnamed", 0.9), candidate("Other", 0.8)]
+    ids = [c["ClientId"] for c in shortlist(s, 10)]
+    assert len(ids) == 10
+    assert ids[:7] == [f"Named{i}" for i in range(7)]
+    assert ids[7:] == ["Unnamed", "Other", "Named7"]
+
+
+def test_shortlist_caps_matter_reference_matches():
+    s = {"input": snapshot()["input"], "candidates": []}
+    for i in range(5):
+        c = candidate(f"Ref{i}", 0.1 + i / 100)
+        c["features"]["matter_reference_match"] = 1
+        s["candidates"].append(c)
+    s["candidates"].append(candidate("Similar", 0.9))
+    ids = [c["ClientId"] for c in shortlist(s, 4)]
+    assert ids == ["Ref4", "Ref3", "Ref2", "Similar"]
+
+
+def test_shortlist_keeps_accepted_first_and_uses_best_similarity():
+    s = snapshot()
+    accepted = candidate("Accepted", 0.2, decision="accept")
+    example = candidate("Example", 0.3)
+    example["features"]["example_similarity"] = 0.95
+    s["candidates"] += [accepted, example]
+    assert [c["ClientId"] for c in shortlist(s, 3)] == ["Accepted", "Example", "Acme"]
 
 
 def test_request_uses_text_not_imported_labels_scores_or_gold():

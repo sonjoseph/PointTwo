@@ -1,5 +1,5 @@
 {
-  "version": "synthetic-v2",
+  "version": "synthetic-v3",
   "catalog": [
     {
       "ClientId": "fictional-00",
@@ -14538,6 +14538,726 @@
       "expected": null,
       "acceptable": [],
       "should_abstain": true
+    },
+    {
+      "entry": {
+        "UserId": "corpus-reviewer",
+        "EntryId": "corpus-0557",
+        "Narrative": "Negotiated protections for incoming shareholders for Alder Robtoics.",
+        "Hours": 0.5,
+        "ClientName": "Incorrect imported client",
+        "MatterName": "Incorrect imported matter",
+        "EntryDate": "2026-11-17"
+      },
+      "category": "client_misspelled",
+      "split": "heldout",
+      "group": "same-matter-name-client_misspelled-0",
+      "expected": [
+        "fictional-00",
+        "PT-00-00"
+      ],
+      "acceptable": [],
+      "should_abstain": false
+    },
+    {
+      "entry": {
+        "UserId": "corpus-reviewer",
+        "EntryId": "corpus-0558",
+        "Narrative": "Assessed safeguards for customer information for Alder.",
+        "Hours": 0.5,
+        "ClientName": "Incorrect imported client",
+        "MatterName": "Incorrect imported matter",
+        "EntryDate": "2026-11-17"
+      },
+      "category": "client_short_name",
+      "split": "heldout",
+      "group": "same-matter-name-client_short_name-3",
+      "expected": [
+        "fictional-00",
+        "PT-00-03"
+      ],
+      "acceptable": [],
+      "should_abstain": false
+    },
+    {
+      "entry": {
+        "UserId": "corpus-reviewer",
+        "EntryId": "corpus-0559",
+        "Narrative": "Amended obligations owed to the commercial landlord for Alder Robotics, responding to comments from Birch Energy.",
+        "Hours": 0.5,
+        "ClientName": "Incorrect imported client",
+        "MatterName": "Incorrect imported matter",
+        "EntryDate": "2026-11-17"
+      },
+      "category": "counterparty_named",
+      "split": "heldout",
+      "group": "same-matter-name-counterparty_named-5",
+      "expected": [
+        "fictional-00",
+        "PT-00-05"
+      ],
+      "acceptable": [],
+      "should_abstain": false
+    },
+    {
+      "entry": {
+        "UserId": "corpus-reviewer",
+        "EntryId": "corpus-0560",
+        "Narrative": "Assessed damages from missed deliveries for Birch Enegry.",
+        "Hours": 0.5,
+        "ClientName": "Incorrect imported client",
+        "MatterName": "Incorrect imported matter",
+        "EntryDate": "2026-11-17"
+      },
+      "category": "client_misspelled",
+      "split": "heldout",
+      "group": "same-matter-name-client_misspelled-1",
+      "expected": [
+        "fictional-01",
+        "PT-01-01"
+      ],
+      "acceptable": [],
+      "should_abstain": false
+    },
+    {
+      "entry": {
+        "UserId": "corpus-reviewer",
+        "EntryId": "corpus-0561",
+        "Narrative": "Analyzed the tax treatment of business expenses for Birch.",
+        "Hours": 0.5,
+        "ClientName": "Incorrect imported client",
+        "MatterName": "Incorrect imported matter",
+        "EntryDate": "2026-11-17"
+      },
+      "category": "client_short_name",
+      "split": "heldout",
+      "group": "same-matter-name-client_short_name-4",
+      "expected": [
+        "fictional-01",
+        "PT-01-04"
+      ],
+      "acceptable": [],
+      "should_abstain": false
+    },
+    {
+      "entry": {
+        "UserId": "corpus-reviewer",
+        "EntryId": "corpus-0562",
+        "Narrative": "Amended claim language in the patent application for Birch Energy, responding to comments from Cobalt Analytics.",
+        "Hours": 0.5,
+        "ClientName": "Incorrect imported client",
+        "MatterName": "Incorrect imported matter",
+        "EntryDate": "2026-11-17"
+      },
+      "category": "counterparty_named",
+      "split": "heldout",
+      "group": "same-matter-name-counterparty_named-6",
+      "expected": [
+        "fictional-01",
+        "PT-01-06"
+      ],
+      "acceptable": [],
+      "should_abstain": false
+    },
+    {
+      "entry": {
+        "UserId": "corpus-reviewer",
+        "EntryId": "corpus-0563",
+        "Narrative": "Advised on onboarding and worker benefits for Cobalt Anayltics.",
+        "Hours": 0.5,
+        "ClientName": "Incorrect imported client",
+        "MatterName": "Incorrect imported matter",
+        "EntryDate": "2026-11-17"
+      },
+      "category": "client_misspelled",
+      "split": "heldout",
+      "group": "same-matter-name-client_misspelled-2",
+      "expected": [
+        "fictional-02",
+        "PT-02-02"
+      ],
+      "acceptable": [],
+      "should_abstain": false
+    },
+    {
+      "entry": {
+        "UserId": "corpus-reviewer",
+        "EntryId": "corpus-0564",
+        "Narrative": "Amended obligations owed to the commercial landlord for Cobalt.",
+        "Hours": 0.5,
+        "ClientName": "Incorrect imported client",
+        "MatterName": "Incorrect imported matter",
+        "EntryDate": "2026-11-17"
+      },
+      "category": "client_short_name",
+      "split": "heldout",
+      "group": "same-matter-name-client_short_name-5",
+      "expected": [
+        "fictional-02",
+        "PT-02-05"
+      ],
+      "acceptable": [],
+      "should_abstain": false
+    },
+    {
+      "entry": {
+        "UserId": "corpus-reviewer",
+        "EntryId": "corpus-0565",
+        "Narrative": "Negotiated borrowing conditions with the bank for Cobalt Analytics, responding to comments from Delta Foods.",
+        "Hours": 0.5,
+        "ClientName": "Incorrect imported client",
+        "MatterName": "Incorrect imported matter",
+        "EntryDate": "2026-11-17"
+      },
+      "category": "counterparty_named",
+      "split": "heldout",
+      "group": "same-matter-name-counterparty_named-7",
+      "expected": [
+        "fictional-02",
+        "PT-02-07"
+      ],
+      "acceptable": [],
+      "should_abstain": false
+    },
+    {
+      "entry": {
+        "UserId": "corpus-reviewer",
+        "EntryId": "corpus-0566",
+        "Narrative": "Assessed safeguards for customer information for Delta Foosd.",
+        "Hours": 0.5,
+        "ClientName": "Incorrect imported client",
+        "MatterName": "Incorrect imported matter",
+        "EntryDate": "2026-11-17"
+      },
+      "category": "client_misspelled",
+      "split": "heldout",
+      "group": "same-matter-name-client_misspelled-3",
+      "expected": [
+        "fictional-03",
+        "PT-03-03"
+      ],
+      "acceptable": [],
+      "should_abstain": false
+    },
+    {
+      "entry": {
+        "UserId": "corpus-reviewer",
+        "EntryId": "corpus-0567",
+        "Narrative": "Amended claim language in the patent application for Delta.",
+        "Hours": 0.5,
+        "ClientName": "Incorrect imported client",
+        "MatterName": "Incorrect imported matter",
+        "EntryDate": "2026-11-17"
+      },
+      "category": "client_short_name",
+      "split": "heldout",
+      "group": "same-matter-name-client_short_name-6",
+      "expected": [
+        "fictional-03",
+        "PT-03-06"
+      ],
+      "acceptable": [],
+      "should_abstain": false
+    },
+    {
+      "entry": {
+        "UserId": "corpus-reviewer",
+        "EntryId": "corpus-0568",
+        "Narrative": "Negotiated protections for incoming shareholders for Delta Foods, responding to comments from Elm Medical.",
+        "Hours": 0.5,
+        "ClientName": "Incorrect imported client",
+        "MatterName": "Incorrect imported matter",
+        "EntryDate": "2026-11-17"
+      },
+      "category": "counterparty_named",
+      "split": "heldout",
+      "group": "same-matter-name-counterparty_named-0",
+      "expected": [
+        "fictional-03",
+        "PT-03-00"
+      ],
+      "acceptable": [],
+      "should_abstain": false
+    },
+    {
+      "entry": {
+        "UserId": "corpus-reviewer",
+        "EntryId": "corpus-0569",
+        "Narrative": "Analyzed the tax treatment of business expenses for Elm Medcial.",
+        "Hours": 0.5,
+        "ClientName": "Incorrect imported client",
+        "MatterName": "Incorrect imported matter",
+        "EntryDate": "2026-11-17"
+      },
+      "category": "client_misspelled",
+      "split": "heldout",
+      "group": "same-matter-name-client_misspelled-4",
+      "expected": [
+        "fictional-04",
+        "PT-04-04"
+      ],
+      "acceptable": [],
+      "should_abstain": false
+    },
+    {
+      "entry": {
+        "UserId": "corpus-reviewer",
+        "EntryId": "corpus-0570",
+        "Narrative": "Negotiated borrowing conditions with the bank for Elm.",
+        "Hours": 0.5,
+        "ClientName": "Incorrect imported client",
+        "MatterName": "Incorrect imported matter",
+        "EntryDate": "2026-11-17"
+      },
+      "category": "client_short_name",
+      "split": "heldout",
+      "group": "same-matter-name-client_short_name-7",
+      "expected": [
+        "fictional-04",
+        "PT-04-07"
+      ],
+      "acceptable": [],
+      "should_abstain": false
+    },
+    {
+      "entry": {
+        "UserId": "corpus-reviewer",
+        "EntryId": "corpus-0571",
+        "Narrative": "Assessed damages from missed deliveries for Elm Medical, responding to comments from Fjord Logistics.",
+        "Hours": 0.5,
+        "ClientName": "Incorrect imported client",
+        "MatterName": "Incorrect imported matter",
+        "EntryDate": "2026-11-17"
+      },
+      "category": "counterparty_named",
+      "split": "heldout",
+      "group": "same-matter-name-counterparty_named-1",
+      "expected": [
+        "fictional-04",
+        "PT-04-01"
+      ],
+      "acceptable": [],
+      "should_abstain": false
+    },
+    {
+      "entry": {
+        "UserId": "corpus-reviewer",
+        "EntryId": "corpus-0572",
+        "Narrative": "Amended obligations owed to the commercial landlord for Fjord Logsitics.",
+        "Hours": 0.5,
+        "ClientName": "Incorrect imported client",
+        "MatterName": "Incorrect imported matter",
+        "EntryDate": "2026-11-17"
+      },
+      "category": "client_misspelled",
+      "split": "heldout",
+      "group": "same-matter-name-client_misspelled-5",
+      "expected": [
+        "fictional-05",
+        "PT-05-05"
+      ],
+      "acceptable": [],
+      "should_abstain": false
+    },
+    {
+      "entry": {
+        "UserId": "corpus-reviewer",
+        "EntryId": "corpus-0573",
+        "Narrative": "Negotiated protections for incoming shareholders for Fjord.",
+        "Hours": 0.5,
+        "ClientName": "Incorrect imported client",
+        "MatterName": "Incorrect imported matter",
+        "EntryDate": "2026-11-17"
+      },
+      "category": "client_short_name",
+      "split": "heldout",
+      "group": "same-matter-name-client_short_name-0",
+      "expected": [
+        "fictional-05",
+        "PT-05-00"
+      ],
+      "acceptable": [],
+      "should_abstain": false
+    },
+    {
+      "entry": {
+        "UserId": "corpus-reviewer",
+        "EntryId": "corpus-0574",
+        "Narrative": "Advised on onboarding and worker benefits for Fjord Logistics, responding to comments from Granite Solar.",
+        "Hours": 0.5,
+        "ClientName": "Incorrect imported client",
+        "MatterName": "Incorrect imported matter",
+        "EntryDate": "2026-11-17"
+      },
+      "category": "counterparty_named",
+      "split": "heldout",
+      "group": "same-matter-name-counterparty_named-2",
+      "expected": [
+        "fictional-05",
+        "PT-05-02"
+      ],
+      "acceptable": [],
+      "should_abstain": false
+    },
+    {
+      "entry": {
+        "UserId": "corpus-reviewer",
+        "EntryId": "corpus-0575",
+        "Narrative": "Amended claim language in the patent application for Granite Solra.",
+        "Hours": 0.5,
+        "ClientName": "Incorrect imported client",
+        "MatterName": "Incorrect imported matter",
+        "EntryDate": "2026-11-17"
+      },
+      "category": "client_misspelled",
+      "split": "heldout",
+      "group": "same-matter-name-client_misspelled-6",
+      "expected": [
+        "fictional-06",
+        "PT-06-06"
+      ],
+      "acceptable": [],
+      "should_abstain": false
+    },
+    {
+      "entry": {
+        "UserId": "corpus-reviewer",
+        "EntryId": "corpus-0576",
+        "Narrative": "Assessed damages from missed deliveries for Granite.",
+        "Hours": 0.5,
+        "ClientName": "Incorrect imported client",
+        "MatterName": "Incorrect imported matter",
+        "EntryDate": "2026-11-17"
+      },
+      "category": "client_short_name",
+      "split": "heldout",
+      "group": "same-matter-name-client_short_name-1",
+      "expected": [
+        "fictional-06",
+        "PT-06-01"
+      ],
+      "acceptable": [],
+      "should_abstain": false
+    },
+    {
+      "entry": {
+        "UserId": "corpus-reviewer",
+        "EntryId": "corpus-0577",
+        "Narrative": "Assessed safeguards for customer information for Granite Solar, responding to comments from Harbor Systems.",
+        "Hours": 0.5,
+        "ClientName": "Incorrect imported client",
+        "MatterName": "Incorrect imported matter",
+        "EntryDate": "2026-11-17"
+      },
+      "category": "counterparty_named",
+      "split": "heldout",
+      "group": "same-matter-name-counterparty_named-3",
+      "expected": [
+        "fictional-06",
+        "PT-06-03"
+      ],
+      "acceptable": [],
+      "should_abstain": false
+    },
+    {
+      "entry": {
+        "UserId": "corpus-reviewer",
+        "EntryId": "corpus-0578",
+        "Narrative": "Negotiated borrowing conditions with the bank for Harbor Sysetms.",
+        "Hours": 0.5,
+        "ClientName": "Incorrect imported client",
+        "MatterName": "Incorrect imported matter",
+        "EntryDate": "2026-11-17"
+      },
+      "category": "client_misspelled",
+      "split": "heldout",
+      "group": "same-matter-name-client_misspelled-7",
+      "expected": [
+        "fictional-07",
+        "PT-07-07"
+      ],
+      "acceptable": [],
+      "should_abstain": false
+    },
+    {
+      "entry": {
+        "UserId": "corpus-reviewer",
+        "EntryId": "corpus-0579",
+        "Narrative": "Advised on onboarding and worker benefits for Harbor.",
+        "Hours": 0.5,
+        "ClientName": "Incorrect imported client",
+        "MatterName": "Incorrect imported matter",
+        "EntryDate": "2026-11-17"
+      },
+      "category": "client_short_name",
+      "split": "heldout",
+      "group": "same-matter-name-client_short_name-2",
+      "expected": [
+        "fictional-07",
+        "PT-07-02"
+      ],
+      "acceptable": [],
+      "should_abstain": false
+    },
+    {
+      "entry": {
+        "UserId": "corpus-reviewer",
+        "EntryId": "corpus-0580",
+        "Narrative": "Analyzed the tax treatment of business expenses for Harbor Systems, responding to comments from Indigo Materials.",
+        "Hours": 0.5,
+        "ClientName": "Incorrect imported client",
+        "MatterName": "Incorrect imported matter",
+        "EntryDate": "2026-11-17"
+      },
+      "category": "counterparty_named",
+      "split": "heldout",
+      "group": "same-matter-name-counterparty_named-4",
+      "expected": [
+        "fictional-07",
+        "PT-07-04"
+      ],
+      "acceptable": [],
+      "should_abstain": false
+    },
+    {
+      "entry": {
+        "UserId": "corpus-reviewer",
+        "EntryId": "corpus-0581",
+        "Narrative": "Negotiated protections for incoming shareholders for Indigo Matreials.",
+        "Hours": 0.5,
+        "ClientName": "Incorrect imported client",
+        "MatterName": "Incorrect imported matter",
+        "EntryDate": "2026-11-17"
+      },
+      "category": "client_misspelled",
+      "split": "heldout",
+      "group": "same-matter-name-client_misspelled-0",
+      "expected": [
+        "fictional-08",
+        "PT-08-00"
+      ],
+      "acceptable": [],
+      "should_abstain": false
+    },
+    {
+      "entry": {
+        "UserId": "corpus-reviewer",
+        "EntryId": "corpus-0582",
+        "Narrative": "Assessed safeguards for customer information for Indigo.",
+        "Hours": 0.5,
+        "ClientName": "Incorrect imported client",
+        "MatterName": "Incorrect imported matter",
+        "EntryDate": "2026-11-17"
+      },
+      "category": "client_short_name",
+      "split": "heldout",
+      "group": "same-matter-name-client_short_name-3",
+      "expected": [
+        "fictional-08",
+        "PT-08-03"
+      ],
+      "acceptable": [],
+      "should_abstain": false
+    },
+    {
+      "entry": {
+        "UserId": "corpus-reviewer",
+        "EntryId": "corpus-0583",
+        "Narrative": "Amended obligations owed to the commercial landlord for Indigo Materials, responding to comments from Juniper Mobility.",
+        "Hours": 0.5,
+        "ClientName": "Incorrect imported client",
+        "MatterName": "Incorrect imported matter",
+        "EntryDate": "2026-11-17"
+      },
+      "category": "counterparty_named",
+      "split": "heldout",
+      "group": "same-matter-name-counterparty_named-5",
+      "expected": [
+        "fictional-08",
+        "PT-08-05"
+      ],
+      "acceptable": [],
+      "should_abstain": false
+    },
+    {
+      "entry": {
+        "UserId": "corpus-reviewer",
+        "EntryId": "corpus-0584",
+        "Narrative": "Assessed damages from missed deliveries for Juniper Mobliity.",
+        "Hours": 0.5,
+        "ClientName": "Incorrect imported client",
+        "MatterName": "Incorrect imported matter",
+        "EntryDate": "2026-11-17"
+      },
+      "category": "client_misspelled",
+      "split": "heldout",
+      "group": "same-matter-name-client_misspelled-1",
+      "expected": [
+        "fictional-09",
+        "PT-09-01"
+      ],
+      "acceptable": [],
+      "should_abstain": false
+    },
+    {
+      "entry": {
+        "UserId": "corpus-reviewer",
+        "EntryId": "corpus-0585",
+        "Narrative": "Analyzed the tax treatment of business expenses for Juniper.",
+        "Hours": 0.5,
+        "ClientName": "Incorrect imported client",
+        "MatterName": "Incorrect imported matter",
+        "EntryDate": "2026-11-17"
+      },
+      "category": "client_short_name",
+      "split": "heldout",
+      "group": "same-matter-name-client_short_name-4",
+      "expected": [
+        "fictional-09",
+        "PT-09-04"
+      ],
+      "acceptable": [],
+      "should_abstain": false
+    },
+    {
+      "entry": {
+        "UserId": "corpus-reviewer",
+        "EntryId": "corpus-0586",
+        "Narrative": "Amended claim language in the patent application for Juniper Mobility, responding to comments from Kestrel Devices.",
+        "Hours": 0.5,
+        "ClientName": "Incorrect imported client",
+        "MatterName": "Incorrect imported matter",
+        "EntryDate": "2026-11-17"
+      },
+      "category": "counterparty_named",
+      "split": "heldout",
+      "group": "same-matter-name-counterparty_named-6",
+      "expected": [
+        "fictional-09",
+        "PT-09-06"
+      ],
+      "acceptable": [],
+      "should_abstain": false
+    },
+    {
+      "entry": {
+        "UserId": "corpus-reviewer",
+        "EntryId": "corpus-0587",
+        "Narrative": "Advised on onboarding and worker benefits for Kestrel Devcies.",
+        "Hours": 0.5,
+        "ClientName": "Incorrect imported client",
+        "MatterName": "Incorrect imported matter",
+        "EntryDate": "2026-11-17"
+      },
+      "category": "client_misspelled",
+      "split": "heldout",
+      "group": "same-matter-name-client_misspelled-2",
+      "expected": [
+        "fictional-10",
+        "PT-10-02"
+      ],
+      "acceptable": [],
+      "should_abstain": false
+    },
+    {
+      "entry": {
+        "UserId": "corpus-reviewer",
+        "EntryId": "corpus-0588",
+        "Narrative": "Amended obligations owed to the commercial landlord for Kestrel.",
+        "Hours": 0.5,
+        "ClientName": "Incorrect imported client",
+        "MatterName": "Incorrect imported matter",
+        "EntryDate": "2026-11-17"
+      },
+      "category": "client_short_name",
+      "split": "heldout",
+      "group": "same-matter-name-client_short_name-5",
+      "expected": [
+        "fictional-10",
+        "PT-10-05"
+      ],
+      "acceptable": [],
+      "should_abstain": false
+    },
+    {
+      "entry": {
+        "UserId": "corpus-reviewer",
+        "EntryId": "corpus-0589",
+        "Narrative": "Negotiated borrowing conditions with the bank for Kestrel Devices, responding to comments from Linden Networks.",
+        "Hours": 0.5,
+        "ClientName": "Incorrect imported client",
+        "MatterName": "Incorrect imported matter",
+        "EntryDate": "2026-11-17"
+      },
+      "category": "counterparty_named",
+      "split": "heldout",
+      "group": "same-matter-name-counterparty_named-7",
+      "expected": [
+        "fictional-10",
+        "PT-10-07"
+      ],
+      "acceptable": [],
+      "should_abstain": false
+    },
+    {
+      "entry": {
+        "UserId": "corpus-reviewer",
+        "EntryId": "corpus-0590",
+        "Narrative": "Assessed safeguards for customer information for Linden Netowrks.",
+        "Hours": 0.5,
+        "ClientName": "Incorrect imported client",
+        "MatterName": "Incorrect imported matter",
+        "EntryDate": "2026-11-17"
+      },
+      "category": "client_misspelled",
+      "split": "heldout",
+      "group": "same-matter-name-client_misspelled-3",
+      "expected": [
+        "fictional-11",
+        "PT-11-03"
+      ],
+      "acceptable": [],
+      "should_abstain": false
+    },
+    {
+      "entry": {
+        "UserId": "corpus-reviewer",
+        "EntryId": "corpus-0591",
+        "Narrative": "Amended claim language in the patent application for Linden.",
+        "Hours": 0.5,
+        "ClientName": "Incorrect imported client",
+        "MatterName": "Incorrect imported matter",
+        "EntryDate": "2026-11-17"
+      },
+      "category": "client_short_name",
+      "split": "heldout",
+      "group": "same-matter-name-client_short_name-6",
+      "expected": [
+        "fictional-11",
+        "PT-11-06"
+      ],
+      "acceptable": [],
+      "should_abstain": false
+    },
+    {
+      "entry": {
+        "UserId": "corpus-reviewer",
+        "EntryId": "corpus-0592",
+        "Narrative": "Negotiated protections for incoming shareholders for Linden Networks, responding to comments from Alder Robotics.",
+        "Hours": 0.5,
+        "ClientName": "Incorrect imported client",
+        "MatterName": "Incorrect imported matter",
+        "EntryDate": "2026-11-17"
+      },
+      "category": "counterparty_named",
+      "split": "heldout",
+      "group": "same-matter-name-counterparty_named-0",
+      "expected": [
+        "fictional-11",
+        "PT-11-00"
+      ],
+      "acceptable": [],
+      "should_abstain": false
     }
   ],
   "feedback_pairs": [
@@ -14835,6 +15555,7 @@
     "Ambiguous cases have multiple plausible labels or no supported label; arbitrary top-one choices are not counted as correct.",
     "Development and held-out explicit-client templates differ; no training is performed on this corpus by default.",
     "Feedback examples are separate from blind accuracy evaluation; imported assignments are deliberately wrong.",
+    "Every client shares the same matter names and descriptions; misspelled, shortened, and counterparty client references test same-name disambiguation without exact client-name matching.",
     "The conservative demo review policy is uncalibrated; closed matters intentionally require review."
   ]
 }

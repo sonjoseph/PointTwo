@@ -8,8 +8,11 @@ from psycopg.types.json import Jsonb
 
 from .database import connect
 from .embeddings import INSTRUCTION
-from .scoring import contains, feature_values, normalize, review_policy, score
+from .scoring import feature_values, normalize, review_policy, score
 from .store import Missing, NotReady, lock, progress
+
+# Catalog neighbors retrieved by HNSW. Must not exceed hnsw.ef_search (400).
+CATALOG_NEIGHBORS = 50
 
 
 class Engine:
@@ -57,7 +60,7 @@ class Engine:
             catalog_sql = f"""WITH nearest AS MATERIALIZED (
                 SELECT v.source_id,v.matter_id,v.matter_revision,v.embedding <=> %(query)s AS distance
                 FROM pt_vectors v WHERE v.workspace_id=%(ws)s AND v.model_id=%(model)s AND v.kind='catalog'
-                ORDER BY {order} LIMIT 50)
+                ORDER BY {order} LIMIT {CATALOG_NEIGHBORS})
                 SELECT n.source_id,n.matter_id,n.distance FROM nearest n JOIN matters m
                 ON m.workspace_id=%(ws)s AND m.id=n.matter_id AND m.revision=n.matter_revision
                 ORDER BY n.distance"""
@@ -102,25 +105,10 @@ class Engine:
                     explicit[str(d["matter_id"])] = "accept"
                 else:
                     explicit[str(d["matter_id"])] = "reject"
-            # Literal substring prefilter, then Unicode-aware boundary verification.
-            # No wildcard interpretation of client-controlled names.
-            lexical = conn.execute(
-                """SELECT id,client_name,matter_id FROM matters WHERE workspace_id=%s
-                AND (strpos(lower(%s),lower(client_name))>0 OR strpos(lower(%s),lower(matter_id))>0)
-                ORDER BY id LIMIT 1000""",
-                (ws, entry["Narrative"], entry["Narrative"]),
-            ).fetchall()
-            lexical_ids = {
-                str(r["id"])
-                for r in lexical
-                if contains(entry["Narrative"], r["client_name"])
-                or contains(entry["Narrative"], r["matter_id"])
-            }
-            ids = (
-                {str(r["matter_id"]) for r in catalog + history}
-                | lexical_ids
-                | set(explicit)
-            )
+            # The pool comes only from indexed similarity search and review decisions.
+            # Exact client-name / matter-ID matches are flagged per pool member
+            # (feature_values) and prioritized in the shortlist, not searched for.
+            ids = {str(r["matter_id"]) for r in catalog + history} | set(explicit)
             matters = (
                 conn.execute(
                     """SELECT m.*,v.body,v.embedding <=> %s AS distance FROM matters m JOIN pt_vectors v
@@ -154,7 +142,7 @@ class Engine:
                     sources.append("catalog")
                 if examples:
                     sources.append("confirmed examples")
-                if ident in lexical_ids:
+                if features["client_name_match"] or features["matter_reference_match"]:
                     sources.append("explicit reference")
                 if ident in explicit:
                     sources.append("review decision")
@@ -219,7 +207,7 @@ class Engine:
                 "retrieval": {
                     "settings": {
                         "ef_search": 400,
-                        "catalog_limit": 50,
+                        "catalog_limit": CATALOG_NEIGHBORS,
                         "example_limit": 100,
                         "exact": exact,
                     },

@@ -294,8 +294,38 @@ def build():
         "Selected music for a party",
     ]:
         add(phrase + ".", "out_of_domain")
+    # Same matter name at every client: only the client reference identifies the
+    # matter. These variants break exact client-name matching but stay answerable.
+    # Appended last so earlier case IDs remain stable across corpus versions.
+    for i, client in enumerate(CLIENTS):
+        cid = f"fictional-{i:02d}"
+        other = CLIENTS[(i + 1) % len(CLIENTS)]
+        first, *rest = client.split()
+        last = rest[-1]
+        misspelled = " ".join(
+            [first, *rest[:-1], last[:3] + last[4] + last[3] + last[5:]]
+        )
+        for category, j, narrative in (
+            ("client_misspelled", i % 8, f"{WORK[i % 8][5][2]} for {misspelled}."),
+            (
+                "client_short_name",
+                (i + 3) % 8,
+                f"{WORK[(i + 3) % 8][5][2]} for {first}.",
+            ),
+            (
+                "counterparty_named",
+                (i + 5) % 8,
+                f"{WORK[(i + 5) % 8][5][2]} for {client}, responding to comments from {other}.",
+            ),
+        ):
+            add(
+                narrative,
+                category,
+                [cid, f"PT-{i:02d}-{j:02d}"],
+                group=f"same-matter-name-{category}-{j}",
+            )
     return {
-        "version": "synthetic-v2",
+        "version": "synthetic-v3",
         "catalog": catalog,
         "cases": cases,
         "feedback_pairs": pairs,
@@ -304,6 +334,7 @@ def build():
             "Ambiguous cases have multiple plausible labels or no supported label; arbitrary top-one choices are not counted as correct.",
             "Development and held-out explicit-client templates differ; no training is performed on this corpus by default.",
             "Feedback examples are separate from blind accuracy evaluation; imported assignments are deliberately wrong.",
+            "Every client shares the same matter names and descriptions; misspelled, shortened, and counterparty client references test same-name disambiguation without exact client-name matching.",
             "The conservative demo review policy is uncalibrated; closed matters intentionally require review.",
         ],
     }

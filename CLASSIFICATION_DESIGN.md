@@ -12,7 +12,7 @@ This document covers the selected retrieval-plus-decision design, the evolution 
 
 | Requirement | How the design addresses it |
 | --- | --- |
-| **Matching:** connect narrative paraphrases to relevant matters | Qwen embeddings capture semantic similarity; explicit client names and matter references add identity evidence. Jev interprets the original narrative, shortlisted matter descriptions, and confirmed examples together. |
+| **Matching:** connect narrative paraphrases to relevant matters | Qwen embeddings capture semantic similarity; retrieved matters whose client name or matter ID appears in the narrative get capped shortlist slots. Jev interprets the original narrative, shortlisted matter descriptions, and confirmed examples together. |
 | **Scale:** search 50,000+ client/matter records | Persist catalog and confirmed-example vectors in separate pgvector HNSW indexes. Retrieve bounded candidate sets before exact rescoring, rather than compare every record for every query. |
 | **Reusable preparation:** store preparation and rebuild when data changes | Persist embeddings, text/model cache keys, indexes, source revisions, and preparation jobs. Reuse unchanged vectors; update changed records and support an explicit rebuild. Refreshing suggestions is separate from recomputing embeddings. |
 | **Feedback:** accept or reject each suggestion and improve over time | Index accepted narratives as confirmed examples; corrections replace their associations and rejections exclude the applicable candidate. Future queries retrieve the corrected examples into the decision context. Hosted Jev is not retrained on these decisions. |
@@ -40,7 +40,9 @@ Persist review decisions, source revisions, prepared embeddings, retrieval/model
 | Learned linear scorer | Fit those weights with logistic regression on reviewed entry/candidate pairs | Improves weighting, but still cannot recover distinctions absent from the features. Retained as a baseline experiment. |
 | **Jev decision pipeline** | Read the narrative, candidate descriptions, and confirmed examples together | Selected application pipeline: interpret relationships and conflicting evidence directly. Additional inference, privacy, and calibration costs must be measured. |
 
-The motivation is to preserve distinctions lost when text becomes a few numeric features. In the paired evaluation, “Revised financial covenants in the credit facility for Alder Robotics” scored slightly closer to Series A financing (cosine **0.6561**) than Credit facility (**0.6520**). The weighted baseline followed that order; Jev selected Credit facility from the supplied descriptions. Held-out top-one accuracy improved from **87.9% to 95.0%**, but Jev also cleared one unsupported assignment. See the [paired results and worked examples](docs/EVALUATION_REPORT.md#jev-versus-similarity-and-weighted-scoring). This synthetic result motivates further evaluation, not a claim that text reasoning always wins.
+The motivation is to preserve distinctions lost when text becomes a few numeric features. In the paired evaluation, “Revised financial covenants in the credit facility for Alder Robotics” scored slightly closer to Series A financing (cosine **0.6561**) than Credit facility (**0.6520**). The weighted baseline followed that order; Jev selected Credit facility from the supplied descriptions. In that November 17 run, held-out top-one accuracy improved from **87.9% to 95.0%**, but Jev also cleared one unsupported assignment. See the [paired results and worked examples](docs/EVALUATION_REPORT.md#jev-versus-similarity-and-weighted-scoring-november-17-shortlist). This synthetic result motivates further evaluation, not a claim that text reasoning always wins.
+
+On November 22 the shortlist moved to capped exact-match slots, and the corpus gained 36 same-matter-name cases. On the expanded held-out set, Jev scored **93.8%** top-one versus **87.0%** for the weighted scorer on the same shortlist, and every expected matter reached the shortlist. See [Shortlist with capped exact client and matter matches](docs/EVALUATION_REPORT.md#shortlist-with-capped-exact-client-and-matter-matches). Those results also searched the whole catalog for named clients and matter IDs; that search was later removed, so the pool now comes only from indexed retrieval. Rerun without it, Jev scored **93.5%** and the weighted scorer **87.0%**. See [Pool without a full-catalog name search](docs/EVALUATION_REPORT.md#pool-without-a-full-catalog-name-search).
 
 We retain Qwen and HNSW for efficient retrieval. Jev replaces the final weighted decision stage; it is not the embedding model or a search index. Example availability and catalog timekeeper involvement remain excluded as standalone bonuses.
 
@@ -51,9 +53,8 @@ flowchart TD
     Q[Time-entry narrative] --> E[Cached Qwen query embedding]
     E --> C[Catalog HNSW search]
     E --> H[Confirmed-example HNSW search]
-    C --> U[Union and shortlist candidate matters]
+    C --> U[Union candidates; capped name/ID slots within the pool, then similarity]
     H --> U
-    L[Explicit client names and matter references] --> U
     U --> J[Jev reads narrative, candidate descriptions, and confirmed examples]
     Q --> J
     J --> G[Ranked probabilities and evidence sufficiency checks]
@@ -64,8 +65,8 @@ flowchart TD
 ```
 
 1. Retrieve up to 50 catalog neighbors and 100 confirmed-example neighbors, scoped to compatible workspace, model, source revisions, and timekeeper history.
-2. Union their client–matter labels with explicit name/identifier matches. Remove rejected candidates; honor applicable explicit approvals.
-3. Start with a **10-matter shortlist**: explicit approvals first, then explicit text matches, then maximum catalog/example similarity, with stable ID tie-breaking. This selection does not use the weighted scorer or expected evaluation labels. Measure its recall before fixing its size.
+2. Union their client–matter labels with matters this timekeeper previously accepted or rejected for the same narrative. Remove rejected candidates; honor applicable explicit approvals.
+3. Select a **10-matter shortlist** in this order: an accepted matter; up to **3** matters whose matter ID appears in the narrative; up to **7** matters whose client name appears; then the highest maximum of catalog and confirmed-example similarity. Each group is ordered by similarity with stable ID tie-breaking. The caps keep a counterparty, a client with many matters, or a common-word matter ID from taking every slot. This selection does not use the weighted scorer or expected evaluation labels. Measure its recall before fixing its size.
 4. Supply the original narrative, each candidate's client/matter names and catalog description, and up to three distinct confirmed narratives. Exclude the query's own normalized narrative. Do not send imported assignments, baseline scores, or evaluation labels as evidence.
 5. Ask Jev to choose among the candidates and **insufficient evidence**, and separately assess whether the evidence uniquely identifies a matter. Rank matter options by their returned probabilities, then apply review rules and explicit decisions.
 6. Return up to five suggestions for human review. Record the candidate set, prompt/model version, responses, and review policy so the result can be inspected and reproduced.
@@ -73,6 +74,17 @@ flowchart TD
 The two stages have different budgets: indexed retrieval searches the full 50,000+ record collection, potentially spanning thousands of client–matter classes; the decision model reads only **10 shortlisted matters and at most 30 confirmed examples**. There is no Jev call per catalog record. Track correct-matter coverage before and after shortlisting: an apparently certain decision among ten options can still miss an omitted alternative. The quality study uses 108 matters; larger-catalog decision quality remains to be evaluated.
 
 **Without confirmed examples, retrieve and judge catalog descriptions alone.** Continue catalog search as history grows so new matters remain discoverable. Jev cannot recover the correct matter if retrieval or shortlisting omitted it.
+
+Client names and matter IDs are **not searched for** across the catalog. Each retrieved candidate is flagged when its client name or matter ID appears in the narrative as a whole word, ignoring case, and step 3 uses those flags.
+
+**Why capped exact matches.** Similarity alone misses two kinds of explicit reference:
+
+- **Matter IDs:** catalog text omits matter IDs, so a narrative citing `file PT-03-03` cannot be matched to its matter by similarity. A similarity-only shortlist lost 21 of 96 such references.
+- **Client names in large catalogs:** with 1,000 clients sharing matter names, similarity omitted the expected matter for 23 of 480 explicitly named clients. One correct matter ranked 421st, behind other clients with similar names.
+
+Capped slots fixed both on the measured sets. The caps limit the old exact-first risks: named clients get at most seven slots, so a counterparty or a client with many matters cannot take every slot. Exact matching does not help misspelled or shortened names; Jev and similarity must handle those.
+
+**Why the slots apply only within the pool.** Those measurements also searched every matter's client name and ID across the whole catalog. That search could not use an index, so it read every catalog row per query, and it stopped at 1,000 matches in arbitrary ID order. It was removed: the pool now comes only from indexed searches. The cost is that a named matter ranked below 50th by similarity is no longer found. Measured: held-out shortlist coverage fell from 100% to 99.6% (one matter-ID case, which Jev flagged as insufficient evidence), and Jev top-one from 93.8% to 93.5%. At 9,000 matters, 473 of 480 named-client queries reached the shortlist versus 480; a 200-matter pool reaches 479. See [Pool without a full-catalog name search](docs/EVALUATION_REPORT.md#pool-without-a-full-catalog-name-search). See [the worked example](CLASSIFICATION_EXAMPLE.md) and [evaluation report](docs/EVALUATION_REPORT.md#shortlist-with-capped-exact-client-and-matter-matches).
 
 ## Embedding preparation
 
@@ -184,7 +196,7 @@ With a dedicated engine, retain Postgres for authoritative entries and review de
 | all-MiniLM-L6-v2 | Compact 384-dimensional embeddings | Evaluate legal-domain and language quality |
 | Larger Qwen models | Potential quality gains | Higher resource use |
 | Hosted embedding API | Managed inference | Network, privacy, cost, and customization constraints |
-| Lexical search alone | Clear name/identifier matching | Misses paraphrases; retain as complementary evidence |
+| Lexical search alone | Clear name/identifier matching | Misses paraphrases and misspellings; used only to flag retrieved candidates for capped client-name and matter-ID shortlist slots |
 
 Model details: [Jasper](https://huggingface.co/infgrad/Jasper-Token-Compression-600M), [MiniLM](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2).
 

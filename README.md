@@ -2,7 +2,7 @@
 
 A client–matter classification and review application. Local Qwen embeddings and Postgres/pgvector retrieve candidate matters and confirmed narratives; Jev reads the shortlisted texts and returns ranked alternatives or insufficient evidence. The React interface shows the supplied evidence, option probabilities, and how feedback changes future suggestions.
 
-[Classification design and alternatives](CLASSIFICATION_DESIGN.md) · [Evaluation report](docs/EVALUATION_REPORT.md) · [Demo walkthrough](docs/DEMO.md)
+[Classification design and alternatives](CLASSIFICATION_DESIGN.md) · [Worked classification example](CLASSIFICATION_EXAMPLE.md) · [Evaluation report](docs/EVALUATION_REPORT.md) · [Demo walkthrough](docs/DEMO.md)
 
 ## Overview
 
@@ -38,7 +38,7 @@ The API handles imports, review decisions, and interactive classification/debug 
 | Decision | Jev reads the retrieved texts, ranks matter probabilities, and flags insufficient evidence; optional local weighted baseline for comparison |
 | Interface | React review workspace and score debugger, available in a local browser or development Mac window |
 
-The [classification design](CLASSIFICATION_DESIGN.md) explains candidate retrieval, feature scoring, confidence rules, feedback, and model/index alternatives.
+The [classification design](CLASSIFICATION_DESIGN.md) explains candidate retrieval, shortlisting with capped slots for retrieved matters whose client or matter ID is named, confidence rules, feedback, and model/index alternatives.
 
 ## Run locally
 
@@ -90,7 +90,7 @@ With `DATABASE_URL` configured privately, run:
 .pointtwo/classifier-venv/bin/python -m classifier.seed
 ```
 
-This imports 114 fictional matters and 562 entries (the small starter set plus the evaluation corpus) into `POINTTWO_WORKSPACE`, defaulting to `local-review`. Existing IDs are skipped, including edited records and accepted assignments. Expected labels are not imported as feedback. Start the application to prepare vectors and classify queued entries. Use `--small` for just six matters/six entries, or `--workspace demo` to select a separate workspace; launch the API with that same `POINTTWO_WORKSPACE`.
+This imports 114 fictional matters and 598 entries (the small starter set plus the evaluation corpus) into `POINTTWO_WORKSPACE`, defaulting to `local-review`. Existing IDs are skipped, including edited records and accepted assignments. Expected labels are not imported as feedback. Start the application to prepare vectors and classify queued entries. Use `--small` for just six matters/six entries, or `--workspace demo` to select a separate workspace; launch the API with that same `POINTTWO_WORKSPACE`.
 
 ## Review and debug
 
@@ -113,7 +113,7 @@ The Jev pipeline interprets text after neighbor retrieval; option probabilities 
 
 ## Evaluation and tests
 
-The [synthetic corpus](fixtures/classification-corpus.json) contains 108 fictional matters and 556 entries covering clear matches, genuine ambiguity, typos, multiple languages, and feedback probes. Expected labels never enter the classifier. Use the seed command to import the corpus. Evaluation results and their interpretation belong in the [evaluation report](docs/EVALUATION_REPORT.md).
+The [synthetic corpus](fixtures/classification-corpus.json) contains 108 fictional matters and 592 entries covering clear matches, genuine ambiguity, typos, multiple languages, feedback probes, and misspelled, shortened, or counterparty client references for matter names shared by every client. Expected labels never enter the classifier. Use the seed command to import the corpus. Evaluation results and their interpretation belong in the [evaluation report](docs/EVALUATION_REPORT.md).
 
 With `DATABASE_URL` configured:
 
@@ -125,9 +125,11 @@ npm --prefix web run build
 .pointtwo/classifier-venv/bin/python -m classifier.evaluate
 # ANN recall against exact search on the prepared catalog you select:
 .pointtwo/classifier-venv/bin/python -m classifier.benchmark --workspace local-review
+# Shortlist coverage on synthetic catalogs of 12–1,000 same-matter-name clients:
+.pointtwo/classifier-venv/bin/python -m classifier.shortlist_scale
 ```
 
-Tests use isolated workspaces and deterministic vectors. Quality evaluation uses real Qwen and writes `.pointtwo/python/evaluation.json`; it retains its workspace for inspection. The benchmark writes `.pointtwo/python/benchmark.json`, reports the actual record count and query plans, and does not generate a 50k catalog. Small catalogs may use exact search. The [report](docs/EVALUATION_REPORT.md) distinguishes historical 50,100-vector measurements from small-catalog accuracy.
+Tests use isolated workspaces and deterministic vectors. Quality evaluation uses real Qwen and writes `.pointtwo/python/evaluation.json`; it retains its workspace for inspection. The benchmark writes `.pointtwo/python/benchmark.json`, reports the actual record count and query plans, and does not generate a 50k catalog. Small catalogs may use exact search. The [report](docs/EVALUATION_REPORT.md) distinguishes historical 50,100-vector measurements from small-catalog accuracy. The shortlist scale test writes `.pointtwo/python/shortlist-scale.json`; it needs no Jev access and caches its embeddings in Postgres.
 
 `python tests/generate_corpus.py` regenerates the synthetic fixture. Offline scorer training is available through `python -m classifier.train --workspace local-review`; it writes candidate weights and never deploys them automatically.
 
@@ -143,7 +145,7 @@ The [classification design](CLASSIFICATION_DESIGN.md#design-evolution) describes
 .pointtwo/classifier-venv/bin/python -m classifier.compare_jev --execute
 ```
 
-The comparator pins `jev-1.14.0`, uses ten candidates, and exercises 532 blind cases plus three separate before/after feedback probes. `--limit 3` runs three blind cases plus those feedback probes. Reports preserve candidate texts, feature values, probabilities, cosine-only ranking, and shortlist coverage for inspecting individual disagreements. Reports and request payloads go under `.pointtwo/python/`; successful responses are cached under `.pointtwo/jev/` by model/prompt/request identity. Replays do not count as live latency measurements. No expected labels or imported assignments are sent to Jev. Review gates are unvalidated presets; the [evaluation report](docs/EVALUATION_REPORT.md) describes the measured comparison and limitations.
+The comparator pins `jev-1.14.0`, uses ten candidates, and exercises 568 blind cases plus three separate before/after feedback probes. `--limit 3` runs three blind cases plus those feedback probes. Reports preserve candidate texts, feature values, probabilities, cosine-only ranking, and shortlist coverage for inspecting individual disagreements. Reports and request payloads go under `.pointtwo/python/`; successful responses are cached under `.pointtwo/jev/` by model/prompt/request identity. Replays do not count as live latency measurements. No expected labels or imported assignments are sent to Jev. Review gates are unvalidated presets; the [evaluation report](docs/EVALUATION_REPORT.md) describes the measured comparison and limitations.
 
 ## Local execution and central-server deployment
 

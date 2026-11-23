@@ -14,26 +14,56 @@ PROMPT_VERSION = "client-matter-choice-v1"
 NONE = "insufficient_evidence"
 
 
+SHORTLIST_VERSION = "capped-literal-in-pool-v1"
+# Literal matches among the similarity-retrieved pool get guaranteed slots, capped so
+# one client, a counterparty, or a common-word MatterId cannot take the whole
+# shortlist. Similarity fills the rest. The pool itself has no literal search.
+MATTER_REFERENCE_SLOTS = 3
+CLIENT_NAME_SLOTS = 7
+
+
 def shortlist(snapshot, limit=10):
-    """Independent of the linear weights and evaluation labels."""
+    """Select Jev's options without linear weights, imported labels, or gold labels.
+
+    Order of selection: reviewer-accepted matter; up to MATTER_REFERENCE_SLOTS matters
+    whose MatterId appears in the narrative; up to CLIENT_NAME_SLOTS matters whose
+    client name appears; then the highest catalog/example similarity. Each group is
+    ordered by similarity. Rejected matters are excluded.
+    """
     if not 1 <= limit <= 50:
         raise ValueError("Shortlist size must be between 1 and 50")
-    candidates = [c for c in snapshot["candidates"] if c["decision"] != "reject"]
-    return sorted(
-        candidates,
-        key=lambda c: (
-            c["decision"] != "accept",
-            -max(
-                c["features"]["client_name_match"],
-                c["features"]["matter_reference_match"],
-            ),
-            -max(
-                c["features"]["catalog_similarity"], c["features"]["example_similarity"]
-            ),
+
+    def rank(c):
+        f = c["features"]
+        return (
+            -max(f["catalog_similarity"], f["example_similarity"]),
             c["ClientId"],
             c["MatterId"],
-        ),
-    )[:limit]
+        )
+
+    ordered = sorted(
+        (c for c in snapshot["candidates"] if c["decision"] != "reject"), key=rank
+    )
+    selected = []
+    chosen = set()
+
+    def take(group, cap):
+        for c in group:
+            if len(selected) >= limit or cap <= 0:
+                return
+            if c["CandidateId"] not in chosen:
+                selected.append(c)
+                chosen.add(c["CandidateId"])
+                cap -= 1
+
+    take([c for c in ordered if c["decision"] == "accept"], limit)
+    take(
+        [c for c in ordered if c["features"]["matter_reference_match"]],
+        MATTER_REFERENCE_SLOTS,
+    )
+    take([c for c in ordered if c["features"]["client_name_match"]], CLIENT_NAME_SLOTS)
+    take(ordered, limit)
+    return selected
 
 
 def request(snapshot, candidates):

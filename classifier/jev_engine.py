@@ -8,8 +8,16 @@ from psycopg.types.json import Jsonb
 
 from . import store
 from .database import connect
-from .engine import Engine
-from .jev import MODEL, NONE, PROMPT_VERSION, interpret, request, shortlist
+from .engine import CATALOG_NEIGHBORS, Engine
+from .jev import (
+    MODEL,
+    NONE,
+    PROMPT_VERSION,
+    SHORTLIST_VERSION,
+    interpret,
+    request,
+    shortlist,
+)
 from .scoring import FEATURES, normalize
 
 GATES = {"minimum_probability": 0.7, "minimum_margin": 0.1, "minimum_support": 0.7}
@@ -24,6 +32,8 @@ class JevEngine(Engine):
         "kind": "jev",
         "model": MODEL,
         "prompt": PROMPT_VERSION,
+        "shortlist": SHORTLIST_VERSION,
+        "catalog_neighbors": CATALOG_NEIGHBORS,
         "shortlist_size": 10,
         "policy": GATES,
     }
